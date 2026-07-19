@@ -1,0 +1,10 @@
+dist/
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+.DS_Store
+.env
+.env.*
+.claude/

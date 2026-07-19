@@ -1,0 +1,22 @@
+cask "@NAME@" do
+  version "@VERSION@"
+  sha256 "@SHA256@"
+
+  url "https://github.com/nlink-jp/@REPO@/releases/download/v#{version}/@NAME@-v#{version}-darwin-arm64.zip"
+  name "@NAME@"
+  desc "@DESC@"
+  homepage "https://github.com/nlink-jp/@REPO@"
+
+  # Developer ID signed + Apple-notarized + stapled .app (Apple Silicon only).
+  depends_on arch: :arm64
+  depends_on macos: :big_sur
+
+  app "@APP@"
+
+  zap trash: [
+    "~/Library/Caches/@BUNDLE_ID@",
+    "~/Library/Preferences/@BUNDLE_ID@.plist",
+    "~/Library/Saved Application State/@BUNDLE_ID@.savedState",
+    "~/Library/WebKit/@BUNDLE_ID@",
+  ]
+end
