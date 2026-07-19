@@ -6,6 +6,19 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-19
+
+### Fixed
+- The panel sometimes wouldn't open for up to ~30 s after launch (it opened only once
+  the app happened to become active). The menu-bar `NSPanel` depended on the app being
+  active to render, but macOS 14+ focus-stealing prevention can deny
+  `NSApp.activate(ignoringOtherApps:)` right after launch — so the panel was
+  `isVisible` yet never shown on screen. The panel is now a `.nonactivatingPanel`, so it
+  renders and accepts keyboard input without requiring app activation (the reason
+  NSPopover-based menu-bar apps don't hit this). Also: `orderFrontRegardless()` on show,
+  a short grace period so a post-launch focus bounce can't hide the just-opened panel,
+  and the panel is pre-warmed at launch.
+
 ## [0.1.0] - 2026-07-19
 
 First release.

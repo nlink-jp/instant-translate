@@ -72,6 +72,10 @@ docs/{en,ja}/            RFP
   Hotkey-open (`hotKeyPressed` → `showPanel(seedClipboard: true)`) seeds the source
   from the clipboard when the setting is on; the status-item click doesn't seed. The
   recorder swallows keys via a local `keyDown` monitor while capturing.
+- **Panel is `.nonactivatingPanel`** (don't remove) — an ordinary NSPanel only renders
+  while the app is active, and macOS 14+ focus-stealing prevention can deny activation
+  for ~30 s after launch, so the panel was `isVisible` but never shown ("won't open
+  after launch", fixed 0.1.1). Non-activating renders + takes input without activation.
 - **Panel toggle: never `hidesOnDeactivate` on a toggled `NSPanel`** — it auto-hides
   on deactivation but leaves `isVisible == true`, so a `isVisible ? orderOut : show`
   toggle then no-ops instead of opening (the "clicking the icon doesn't open it" bug).

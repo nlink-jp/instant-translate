@@ -75,6 +75,12 @@ programmatic Translation API and this app's deployment target are macOS 26.
   re-anchored under the status item on each open; focus-on-open is driven by
   `AppController.focusToken` → `PanelView`'s `@FocusState`. `AppController` is also
   the Phase 2 hotkey entry point (`showPanel()`).
+- **The panel MUST be a `.nonactivatingPanel`** — don't remove it. An ordinary NSPanel
+  only renders when the app is active, but macOS 14+ focus-stealing prevention can deny
+  `NSApp.activate(ignoringOtherApps:)` for ~30 s after launch, so the panel was
+  `isVisible=true` yet never shown on screen ("won't open right after launch" bug, fixed
+  in 0.1.1). `.nonactivatingPanel` renders + accepts keyboard input without requiring app
+  activation. (NSPopover-based menu-bar apps avoid this; we use NSPanel for resizability.)
 - **Input language is detected before routing**: `PanelView.translate()` runs
   `LanguageDetector` first, then `LanguagePolicy` picks the target. If the detected
   source equals the target (e.g. native input with auto-swap off), it echoes instead

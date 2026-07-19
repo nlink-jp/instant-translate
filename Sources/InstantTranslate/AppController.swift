@@ -19,6 +19,7 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
     private var settingsWindow: NSWindow?
     private var hotKey: GlobalHotKey?
     private var currentCombo: HotKeyCombo?
+    private var lastShownAt = Date.distantPast
 
     override init() {
         // Defaults must be registered before the model reads them.
@@ -52,6 +53,9 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
 
         // Load the OS-supported language set (async) so the pickers are accurate.
         languageCatalog.load()
+
+        // Pre-warm the panel so the first open pays no construction cost.
+        _ = ensurePanel()
     }
 
     @objc private func defaultsChanged() {
@@ -63,7 +67,13 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// Dismiss the translation panel when the app loses focus (click-away behaviour),
     /// via an explicit orderOut so `isVisible` stays accurate for togglePanel.
+    ///
+    /// A short grace period after showing prevents a launch/login focus bounce from
+    /// hiding the panel right after it opens (the "won't open just after launch" bug).
     func applicationDidResignActive(_ notification: Notification) {
+        // A short grace period after showing prevents a launch/login focus bounce from
+        // hiding the just-opened panel.
+        if Date().timeIntervalSince(lastShownAt) < 0.5 { return }
         hidePanel()
     }
 
@@ -89,6 +99,8 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
         position(p)
         NSApp.activate(ignoringOtherApps: true)
         p.makeKeyAndOrderFront(nil)
+        p.orderFrontRegardless()   // come to front even if the app couldn't activate
+        lastShownAt = Date()
         if seedClipboard, SettingsStore.current().clipboardAutoTranslate,
            let s = NSPasteboard.general.string(forType: .string)?
                .trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
@@ -135,9 +147,16 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
 
     private func ensurePanel() -> NSPanel {
         if let panel { return panel }
+        // `.nonactivatingPanel` is essential: without it the panel depends on the app
+        // being active to actually render, but macOS 14+ focus-stealing prevention can
+        // deny `NSApp.activate(ignoringOtherApps:)` for ~30 s after launch — so the
+        // panel was "visible" (isVisible=true) yet not shown on screen until the app
+        // finally activated. A non-activating panel renders + accepts input without
+        // requiring app activation (this is why NSPopover-based menu-bar apps don't hit
+        // this — see load-spinner).
         let p = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 380, height: 340),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered, defer: false)
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
