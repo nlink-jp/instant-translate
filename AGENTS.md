@@ -102,6 +102,16 @@ docs/{en,ja}/            RFP
   (a monotonic counter, since a `Bool` can't re-trigger focus when already `true`);
   `@FocusState` on `TextEditor` did not reliably land. An empty field also shows a
   placeholder overlay so focus is unmistakable.
+- **First responder is not enough — an `NSTextView` draws its caret only in a *key*
+  window.** Opening the panel by hotkey from another app does *not* activate the app
+  (macOS denies it; verified — the other app stays frontmost), so key status is the only
+  thing that makes the caret appear. Three parts, all needed: `TranslationPanel`
+  overrides `canBecomeKey` (a `.nonactivatingPanel` is exactly the case where a window
+  holds key status while the app is inactive); `showPanel` calls `makeKey()` and
+  re-asserts key + focus one runloop turn later, since `NSApp.activate()` is async and
+  may be refused; and the `SourceTextView` coordinator observes
+  `NSWindow.didBecomeKeyNotification` to reclaim first responder and call
+  `updateInsertionPointStateAndRestartTimer`, which covers any remaining ordering.
 - **Pickers show only OS-supported languages, regional variants distinguished** —
   `LanguageCatalog.load()` fetches `LanguageAvailability().supportedLanguages` (async)
   and builds `[LanguageOption]` (id = `minimalIdentifier` e.g. "en-GB"; name

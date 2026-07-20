@@ -1,6 +1,21 @@
 import AppKit
 import SwiftUI
 
+/// The translation panel's window.
+///
+/// It must accept key status *without* the app being active. `.nonactivatingPanel`
+/// lets the panel render and take keystrokes while another app stays frontmost, but an
+/// `NSTextView` only draws its insertion point in a **key** window — so if the panel
+/// declines key status, opening it with the global hotkey from another app gives you a
+/// panel with no visible caret. Overriding `canBecomeKey` states the requirement
+/// outright rather than relying on `NSPanel`'s style-mask-derived default.
+final class TranslationPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    /// Still not a main window — it's an accessory panel, and becoming main would make
+    /// the (hidden) title bar draw as an active document window.
+    override var canBecomeMain: Bool { false }
+}
+
 /// Owns the app's menu-bar presence and the resizable translation panel.
 ///
 /// Replaces `MenuBarExtra` with an `NSStatusItem` + a resizable `NSPanel` (hosting
@@ -97,9 +112,10 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
     func showPanel(seedClipboard: Bool = false) {
         let p = ensurePanel()
         position(p)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         p.makeKeyAndOrderFront(nil)
         p.orderFrontRegardless()   // come to front even if the app couldn't activate
+        p.makeKey()                // key status is what makes the text caret blink
         lastShownAt = Date()
         if seedClipboard, SettingsStore.current().clipboardAutoTranslate,
            let s = NSPasteboard.general.string(forType: .string)?
@@ -107,6 +123,15 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
             model.sourceText = s
         }
         focusInput()
+        // Activation is asynchronous, and macOS can deny it outright while another app
+        // is frontmost — which is exactly the hotkey case. Re-assert key status and
+        // focus one runloop turn later so the caret still appears when the panel is
+        // opened from another app (the panel is `.nonactivatingPanel`, so it can hold
+        // key status without the app ever becoming active).
+        DispatchQueue.main.async { [weak self] in
+            p.makeKey()
+            self?.focusInput()
+        }
     }
 
     func hidePanel() { panel?.orderOut(nil) }
@@ -154,7 +179,7 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
         // finally activated. A non-activating panel renders + accepts input without
         // requiring app activation (this is why NSPopover-based menu-bar apps don't hit
         // this — see load-spinner).
-        let p = NSPanel(
+        let p = TranslationPanel(
             contentRect: NSRect(x: 0, y: 0, width: 380, height: 340),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered, defer: false)

@@ -56,6 +56,7 @@ struct SourceTextView: NSViewRepresentable {
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         context.coordinator.textView = tv
+        context.coordinator.observeKeyWindow(of: tv)
         return scroll
     }
 
@@ -76,6 +77,7 @@ struct SourceTextView: NSViewRepresentable {
             DispatchQueue.main.async {
                 guard let window = tv.window else { return }
                 window.makeFirstResponder(tv)
+                tv.updateInsertionPointStateAndRestartTimer(true)
             }
         }
     }
@@ -87,8 +89,33 @@ struct SourceTextView: NSViewRepresentable {
         weak var textView: ComposingTextView?
         /// The last `focusToken` acted on, so focus is applied once per panel open.
         var appliedFocusToken = Int.min
+        private var keyWindowObserver: NSObjectProtocol?
 
         init(_ parent: SourceTextView) { self.parent = parent }
+
+        deinit {
+            if let keyWindowObserver { NotificationCenter.default.removeObserver(keyWindowObserver) }
+        }
+
+        /// Take focus (and start the caret blinking) the moment the panel becomes key.
+        ///
+        /// `showPanel` asks for focus immediately, but the panel may not be key yet:
+        /// app activation is asynchronous and macOS can refuse it outright when the
+        /// hotkey fires while another app is frontmost. An `NSTextView` only draws its
+        /// insertion point in a key window, so without this the panel could open with
+        /// no visible caret. Reacting to the notification covers every ordering.
+        func observeKeyWindow(of textView: NSTextView) {
+            guard keyWindowObserver == nil else { return }
+            keyWindowObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
+            ) { [weak textView] note in
+                guard let textView,
+                      let window = textView.window,
+                      note.object as AnyObject? === window else { return }
+                if window.firstResponder !== textView { window.makeFirstResponder(textView) }
+                textView.updateInsertionPointStateAndRestartTimer(true)
+            }
+        }
 
         func textDidChange(_ notification: Notification) {
             guard let tv = notification.object as? NSTextView else { return }

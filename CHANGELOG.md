@@ -20,6 +20,12 @@ Semantic Versioning.
   has focus. Focus is applied directly to the text view on each panel open instead of
   through SwiftUI's `@FocusState`, and an empty field shows a "Type or paste text to
   translate" placeholder.
+- **The cursor also appears when the panel is opened by the global hotkey while another
+  app is frontmost.** A text view only draws its insertion point in a *key* window, and
+  the panel wasn't reliably taking key status in that case: macOS refuses to activate
+  the app, and activation is asynchronous besides. The panel now states that it accepts
+  key status, key status and focus are re-asserted after activation settles, and the
+  text view claims focus again whenever the panel becomes key.
 
 ## [0.1.1] - 2026-07-19
 

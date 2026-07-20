@@ -89,6 +89,11 @@ programmatic Translation API and this app's deployment target are macOS 26.
   source-language picker over the panel, typing blocked), and the caret was invisible in
   an empty field. `SourceTextView` + `ComposingTextView` own both; the gating rules are
   in the pure `AutoTranslatePolicy`.
+- **Key status, not just first responder, makes the caret appear** — opening the panel
+  by hotkey from another app doesn't activate the app (macOS denies it), so the panel
+  itself has to take key status: `TranslationPanel.canBecomeKey`, `makeKey()` +
+  a deferred re-assert in `showPanel`, and a `didBecomeKeyNotification` observer in
+  `SourceTextView`. Don't drop any of the three — each covers a different ordering.
 - **Input language is detected before routing**: `PanelView.translate()` runs
   `LanguageDetector` first, then `LanguagePolicy` picks the target. If the detected
   source equals the target (e.g. native input with auto-swap off), it echoes instead
