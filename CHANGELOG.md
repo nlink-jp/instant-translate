@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-20
+
 ### Fixed
 - **Auto-translate no longer fires in the middle of an IME composition.** While a
   kana-kanji conversion (or any input method) was still composing, the debounce timer
