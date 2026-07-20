@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-20
+
 ### Added
 - **The version is now visible in the app** — next to the title in the panel header, and
   again at the foot of Settings. The app has no menu bar and no About item, so there was
