@@ -29,6 +29,7 @@ and light. macOS 26+ (Apple silicon). Signed with Developer ID and notarized.
 - **Only OS-supported languages**: the pickers list exactly the languages your Mac's
   Translation framework supports; unsupported pairs are reported clearly.
 - **Launch at login**: optional (Settings → General).
+- **Version**: shown next to the title in the panel header, and at the foot of Settings.
 - **Volatile history**: the most recent translation is kept in memory only (never
   written to disk); it clears when you quit.
 

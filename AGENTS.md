@@ -112,6 +112,11 @@ docs/{en,ja}/            RFP
   may be refused; and the `SourceTextView` coordinator observes
   `NSWindow.didBecomeKeyNotification` to reclaim first responder and call
   `updateInsertionPointStateAndRestartTimer`, which covers any remaining ordering.
+- **The version must stay visible in the UI** — `AppInfo.version` reads
+  `CFBundleShortVersionString` (injected by `make build-app` from `git describe`) and is
+  shown in the panel header and at the foot of Settings. This app has no menu bar and no
+  About item, so removing those labels leaves users with no way to identify their build.
+  Under `make run` there's no bundle, so it reads `dev` — that's expected, not a bug.
 - **Pickers show only OS-supported languages, regional variants distinguished** —
   `LanguageCatalog.load()` fetches `LanguageAvailability().supportedLanguages` (async)
   and builds `[LanguageOption]` (id = `minimalIdentifier` e.g. "en-GB"; name

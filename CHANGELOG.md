@@ -6,6 +6,12 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+- **The version is now visible in the app** — next to the title in the panel header, and
+  again at the foot of Settings. The app has no menu bar and no About item, so there was
+  previously no way to tell which build you were running. Both labels are selectable, so
+  the exact string can be copied into a bug report.
+
 ## [0.1.2] - 2026-07-20
 
 ### Fixed

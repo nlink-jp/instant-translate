@@ -57,6 +57,7 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - `PanelView.swift` — the translation panel; owns the real `TranslationSession` via `.translationTask`; fills the panel; focus-on-open; debounced auto-translate. Gear → `openSettings`.
 - `SourceTextView.swift` — the source input: an `NSTextView` (`NSViewRepresentable`) that surfaces IME composition state (`hasMarkedText`) and takes first responder on `focusToken`.
 - `AutoTranslatePolicy.swift` — **pure** rules for when a debounced auto-translation may be armed / may run (IME composition, undetectable language). Unit-tested.
+- `Version.swift` — `AppInfo.version` (`CFBundleShortVersionString`, `"dev"` outside a bundle); shown in the panel header + Settings footer, since there's no menu bar / About item.
 - `SettingsView.swift` — the settings window content (secondary language, auto-swap, auto-translate, clipboard, copy); shown in a fixed-size window (scrollable/width-capped as a safety net).
 
 ## Gotchas / conventions

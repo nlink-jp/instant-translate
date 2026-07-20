@@ -34,6 +34,12 @@ struct PanelView: View {
             HStack {
                 Text("instant-translate")
                     .font(.headline)
+                // The app has no menu bar and no About item, so this is the only place
+                // you can find out which build you're running.
+                Text(AppInfo.version)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
                 Spacer()
                 Button { controller.openSettings() } label: {
                     Image(systemName: "gearshape")
