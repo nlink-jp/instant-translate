@@ -16,6 +16,8 @@ and light. macOS 26+ (Apple silicon). Signed with Developer ID and notarized.
 - **Menu bar**: click to open the translation panel.
 - **Type or paste** source text → it **auto-translates** shortly after you stop
   typing (toggle in Settings), or translate immediately with ⌘↩ → **copy** the result.
+  Auto-translate waits for your input method: while an IME is composing (kana-kanji
+  conversion, pinyin, hangul…) nothing is translated until you commit the text.
 - **Smart language routing**: the input language is auto-detected; output goes to
   your system language. When you type in *your own* language, the output is
   auto-swapped to a configured **secondary language** (e.g. English) — toggle in

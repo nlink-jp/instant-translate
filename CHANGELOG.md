@@ -6,6 +6,21 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+- **Auto-translate no longer fires in the middle of an IME composition.** While a
+  kana-kanji conversion (or any input method) was still composing, the debounce timer
+  could elapse and translate the half-converted text. That text isn't recognisable as
+  any language, so macOS put up its source-language picker on top of the panel and
+  blocked further typing. The source field is now an IME-aware `NSTextView`
+  (`SourceTextView`) that reports uncommitted *marked* text; auto-translate holds until
+  the composition is committed, and an automatic run additionally stands down when the
+  input language can't be detected (the condition that raises that picker). Manual
+  Translate (⌘↩) is unchanged — it always runs.
+- **The text cursor is now visible in an empty input field**, so it's clear the panel
+  has focus. Focus is applied directly to the text view on each panel open instead of
+  through SwiftUI's `@FocusState`, and an empty field shows a "Type or paste text to
+  translate" placeholder.
+
 ## [0.1.1] - 2026-07-19
 
 ### Fixed

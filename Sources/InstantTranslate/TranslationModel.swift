@@ -22,6 +22,10 @@ final class TranslationModel: ObservableObject {
     // Inputs
     @Published var sourceText: String = ""
     @Published var detectedSource: String?
+    /// True while an input method is composing uncommitted text in the source field
+    /// (kana-kanji conversion and friends). Mirrored from the text view by
+    /// `SourceTextView`; gates auto-translate via `AutoTranslatePolicy`.
+    @Published var isComposing: Bool = false
     /// A manual target-language override (base subtag). `nil` = automatic routing
     /// (`LanguagePolicy`). In-memory only — resets to automatic on app restart.
     @Published var targetOverride: String?

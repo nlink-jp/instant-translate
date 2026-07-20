@@ -55,6 +55,8 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - `LanguageCatalog.swift` — async load of OS-supported languages (`LanguageAvailability`) → `[LanguageOption]` (region-qualified when a base has >1 variant); pickers bind to it.
 - `TextTranslating.swift` — protocol + `EchoTranslator` stub (tests/previews).
 - `PanelView.swift` — the translation panel; owns the real `TranslationSession` via `.translationTask`; fills the panel; focus-on-open; debounced auto-translate. Gear → `openSettings`.
+- `SourceTextView.swift` — the source input: an `NSTextView` (`NSViewRepresentable`) that surfaces IME composition state (`hasMarkedText`) and takes first responder on `focusToken`.
+- `AutoTranslatePolicy.swift` — **pure** rules for when a debounced auto-translation may be armed / may run (IME composition, undetectable language). Unit-tested.
 - `SettingsView.swift` — the settings window content (secondary language, auto-swap, auto-translate, clipboard, copy); shown in a fixed-size window (scrollable/width-capped as a safety net).
 
 ## Gotchas / conventions
@@ -81,6 +83,12 @@ programmatic Translation API and this app's deployment target are macOS 26.
   `isVisible=true` yet never shown on screen ("won't open right after launch" bug, fixed
   in 0.1.1). `.nonactivatingPanel` renders + accepts keyboard input without requiring app
   activation. (NSPopover-based menu-bar apps avoid this; we use NSPanel for resizability.)
+- **The source field is a custom `NSTextView`, not `TextEditor`** — don't swap it back.
+  `TextEditor` exposes neither *marked* (uncommitted IME) text nor reliable focus, and
+  both were bugs: auto-translate fired mid kana-kanji conversion (garbage in, OS
+  source-language picker over the panel, typing blocked), and the caret was invisible in
+  an empty field. `SourceTextView` + `ComposingTextView` own both; the gating rules are
+  in the pure `AutoTranslatePolicy`.
 - **Input language is detected before routing**: `PanelView.translate()` runs
   `LanguageDetector` first, then `LanguagePolicy` picks the target. If the detected
   source equals the target (e.g. native input with auto-swap off), it echoes instead

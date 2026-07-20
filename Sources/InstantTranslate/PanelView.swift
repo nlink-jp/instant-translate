@@ -17,7 +17,6 @@ struct PanelView: View {
     @EnvironmentObject private var controller: AppController
     @EnvironmentObject private var catalog: LanguageCatalog
     @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = true
-    @FocusState private var inputFocused: Bool
     @State private var configuration: TranslationSession.Configuration?
     @State private var debounceTask: Task<Void, Never>?
 
@@ -43,10 +42,22 @@ struct PanelView: View {
                 .help("Settings")
             }
 
-            TextEditor(text: $model.sourceText)
-                .font(.body)
+            SourceTextView(text: $model.sourceText,
+                           isComposing: $model.isComposing,
+                           focusToken: controller.focusToken)
                 .frame(minHeight: 80, maxHeight: .infinity)
-                .focused($inputFocused)
+                .overlay(alignment: .topLeading) {
+                    // A caret alone in an empty field is easy to miss; the prompt makes
+                    // it unmistakable that the panel is ready for input.
+                    if isSourceEmpty {
+                        Text("Type or paste text to translate")
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 8)
+                            .padding(.top, 6)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
 
             HStack(spacing: 6) {
@@ -68,7 +79,7 @@ struct PanelView: View {
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
-                Button("Translate", action: translate)
+                Button("Translate") { translate() }
                     .keyboardShortcut(.return, modifiers: [.command])
                     .disabled(isSourceEmpty)
             }
@@ -100,9 +111,13 @@ struct PanelView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { inputFocused = true }
-        .onChange(of: controller.focusToken) { _, _ in inputFocused = true }
         .onChange(of: model.sourceText) { _, newValue in scheduleAutoTranslate(newValue) }
+        .onChange(of: model.isComposing) { _, composing in
+            // A committed composition often leaves the text unchanged (the marked run
+            // and the confirmed run are the same string), so the source-text observer
+            // above never fires — arm the timer from the composition edge instead.
+            if composing { debounceTask?.cancel() } else { scheduleAutoTranslate(model.sourceText) }
+        }
         .onChange(of: model.targetOverride) { _, _ in
             // Switching the target re-runs the translation (or just updates the label
             // when there's nothing to translate yet).
@@ -115,20 +130,24 @@ struct PanelView: View {
 
     /// Debounced auto-translate: fire once the input has been idle for
     /// `autoTranslateDelay`. Each change cancels the pending run, so it only
-    /// translates when typing pauses. Clearing the input clears the output.
+    /// translates when typing pauses. Clearing the input clears the output; an open
+    /// IME composition holds everything back (see `AutoTranslatePolicy`).
     private func scheduleAutoTranslate(_ newValue: String) {
         debounceTask?.cancel()
-        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
+        switch AutoTranslatePolicy.action(forSourceText: newValue,
+                                          autoTranslateEnabled: autoTranslate,
+                                          isComposing: model.isComposing) {
+        case .clearOutput:
             model.translatedText = ""
             model.errorMessage = nil
-            return
-        }
-        guard autoTranslate else { return }
-        debounceTask = Task { @MainActor in
-            try? await Task.sleep(for: autoTranslateDelay)
-            guard !Task.isCancelled, model.sourceText == newValue else { return }
-            translate()
+        case .ignore:
+            break
+        case .schedule:
+            debounceTask = Task { @MainActor in
+                try? await Task.sleep(for: autoTranslateDelay)
+                guard !Task.isCancelled, model.sourceText == newValue else { return }
+                translate(automatic: true)
+            }
         }
     }
 
@@ -140,12 +159,19 @@ struct PanelView: View {
     /// re-arm) the translation configuration. The session's source is left `nil` so
     /// the framework auto-detects; the *detected* language is used only to route the
     /// target (e.g. native input → the secondary language when auto-swap is on).
-    private func translate() {
+    ///
+    /// `automatic` runs are additionally gated by `AutoTranslatePolicy.mayRun` — they
+    /// stand down rather than provoke the OS's source-language picker mid-typing.
+    private func translate(automatic: Bool = false) {
         guard !isSourceEmpty else { return }
         debounceTask?.cancel()          // a manual translate supersedes any pending auto-run
         model.errorMessage = nil
         model.detectedSource = LanguageDetector.detect(model.sourceText)
-        model.resolveTarget()
+        model.resolveTarget()           // before the guard, so the "Auto (…)" hint stays honest
+        if automatic, !AutoTranslatePolicy.mayRun(detectedSource: model.detectedSource,
+                                                  isComposing: model.isComposing) {
+            return
+        }
 
         // Identical source/target languages error out in the framework — short-circuit
         // and echo the input instead (e.g. native input with auto-swap turned off).

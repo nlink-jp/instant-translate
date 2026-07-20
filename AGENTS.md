@@ -85,6 +85,23 @@ docs/{en,ja}/            RFP
 - **Auto-translate is debounced** — `PanelView.scheduleAutoTranslate` fires ~600 ms
   after the input stops changing; each change cancels the pending `Task`. Gated by the
   `autoTranslate` setting; a manual `translate()` cancels any pending auto-run.
+- **Auto-translate must never run mid-IME-composition** — the source field is a custom
+  `SourceTextView` (`NSTextView`), not `TextEditor`, precisely because `TextEditor`
+  can't tell you about *marked* (uncommitted) IME text. Translating a half-done
+  kana-kanji conversion produced garbage and made the OS raise its source-language
+  picker over the panel, blocking typing (the 0.1.2 bug). `ComposingTextView` reports
+  composition edges from `setMarkedText`/`unmarkText`/`insertText` — `textDidChange`
+  alone is not enough, because committing a composition can leave the string
+  byte-identical and emit no change at all. State lands in
+  `TranslationModel.isComposing`; the rules live in the pure, unit-tested
+  `AutoTranslatePolicy` (`action(forSourceText:…)` to arm, `mayRun(…)` at fire time).
+  `mayRun` also stands down when `LanguageDetector` returns `nil` — undetectable input
+  is exactly what triggers that OS picker. Manual translate is never gated.
+- **The caret must be visible in the empty input** — focus is applied by
+  `SourceTextView.updateNSView` calling `makeFirstResponder` when `focusToken` changes
+  (a monotonic counter, since a `Bool` can't re-trigger focus when already `true`);
+  `@FocusState` on `TextEditor` did not reliably land. An empty field also shows a
+  placeholder overlay so focus is unmistakable.
 - **Pickers show only OS-supported languages, regional variants distinguished** —
   `LanguageCatalog.load()` fetches `LanguageAvailability().supportedLanguages` (async)
   and builds `[LanguageOption]` (id = `minimalIdentifier` e.g. "en-GB"; name
