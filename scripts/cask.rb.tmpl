@@ -8,11 +8,8 @@ cask "@NAME@" do
   homepage "https://github.com/nlink-jp/@REPO@"
 
   # Developer ID signed + Apple-notarized + stapled .app (Apple Silicon only).
-  # :tahoe (macOS 26), NOT the shared template's :big_sur floor — the app requires
-  # the macOS 26 Translation API (LSMinimumSystemVersion=26.0). The symbol alone
-  # means ">= that version" (the '">= :tahoe"' string form is deprecated).
   depends_on arch: :arm64
-  depends_on macos: :tahoe
+  depends_on macos: :big_sur
 
   app "@APP@"
 

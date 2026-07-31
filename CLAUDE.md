@@ -119,9 +119,16 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - **Only OS-supported languages in pickers** — `LanguageCatalog` loads them async from
   `LanguageAvailability`; `PanelView.run` pre-checks `status(from:to:)` for a clear
   unsupported-pair message.
-- **Cask min-macOS** (`scripts/cask.rb.tmpl`) is the shared template's `:big_sur`
-  floor; the app itself enforces macOS 26 via `LSMinimumSystemVersion`. Bump the
-  cask floor at release if precision matters.
+- **Cask min-macOS regresses on every `make brew`** — the published cask must say
+  `depends_on macos: :tahoe` (this app needs the macOS 26 Translation API), but
+  `scripts/cask.rb.tmpl` MUST stay byte-identical to the shared
+  `.github/templates/cask.rb.tmpl` (`check-org.sh` fails on any drift), and the
+  shared template's floor is `:big_sur`. So regenerating the cask silently reverts
+  the floor (it shipped wrong at v0.2.0 before being caught). After every
+  `make brew`, edit `Casks/instant-translate.rb` in the homebrew-tap checkout back
+  to `:tahoe`, commit, push, and re-run `brew audit --cask --online`. The real fix
+  (a `@MACOS_FLOOR@` placeholder in the shared template) is an org-wide template
+  change — tracked separately.
 
 ## Design reference
 
