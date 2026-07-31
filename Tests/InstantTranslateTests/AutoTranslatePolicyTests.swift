@@ -44,19 +44,21 @@ final class AutoTranslatePolicyTests: XCTestCase {
             .ignore)
     }
 
-    // MARK: - mayRun(detectedSource:isComposing:)
+    // MARK: - mayRun(resolvedSource:isComposing:)
 
-    func testMayRunWithDetectedLanguage() {
-        XCTAssertTrue(AutoTranslatePolicy.mayRun(detectedSource: "ja", isComposing: false))
+    func testMayRunWithAResolvedLanguage() {
+        // Detected — or pinned: a pin resolves the source even when the text itself
+        // is undetectable, so the gate must let the run through either way.
+        XCTAssertTrue(AutoTranslatePolicy.mayRun(resolvedSource: "ja", isComposing: false))
     }
 
-    func testStandsDownWhenTheLanguageIsUndetectable() {
-        // Undetectable input makes macOS raise its source-language picker over the
-        // panel; an automatic run must never trigger that.
-        XCTAssertFalse(AutoTranslatePolicy.mayRun(detectedSource: nil, isComposing: false))
+    func testStandsDownWhenTheLanguageIsUnresolvable() {
+        // No pin and undetectable input makes macOS raise its source-language picker
+        // over the panel; an automatic run must never trigger that.
+        XCTAssertFalse(AutoTranslatePolicy.mayRun(resolvedSource: nil, isComposing: false))
     }
 
     func testStandsDownIfACompositionOpenedWhileTheTimerRan() {
-        XCTAssertFalse(AutoTranslatePolicy.mayRun(detectedSource: "ja", isComposing: true))
+        XCTAssertFalse(AutoTranslatePolicy.mayRun(resolvedSource: "ja", isComposing: true))
     }
 }

@@ -54,6 +54,35 @@ final class TranslationModelTests: XCTestCase {
         XCTAssertEqual(m.targetLanguage, "ja")   // en → ja (auto)
     }
 
+    func testPinnedSourceWinsOverDetection() async {
+        let m = model(local: "ja", secondary: "en", autoSwap: true)
+        m.sourceOverride = "ja"          // user pinned the input language
+        m.sourceText = "Hello"
+        m.detectedSource = "en"          // auto would route en → ja
+        await m.translateUsingInjected()
+
+        XCTAssertEqual(m.targetLanguage, "en")   // pinned ja → secondary (auto-swap)
+        XCTAssertEqual(m.translatedText, "[en] Hello")
+    }
+
+    func testPinnedSourceResolvesEvenWhenDetectionFails() {
+        let m = model(local: "ja", secondary: "en", autoSwap: true)
+        m.sourceOverride = "en"
+        m.detectedSource = nil           // short/undetectable input
+        XCTAssertEqual(m.resolvedSource, "en")
+        m.resolveTarget()
+        XCTAssertEqual(m.targetLanguage, "ja")   // pinned en → local
+    }
+
+    func testUnpinningReturnsToDetection() {
+        let m = model(local: "ja", secondary: "en", autoSwap: true)
+        m.detectedSource = "en"
+        m.sourceOverride = "ja"; m.resolveTarget()
+        XCTAssertEqual(m.targetLanguage, "en")   // pinned ja → secondary
+        m.sourceOverride = nil; m.resolveTarget()
+        XCTAssertEqual(m.targetLanguage, "ja")   // detected en → local
+    }
+
     func testBlankSourceDoesNotRecordEntry() async {
         let m = model(local: "ja", secondary: "en", autoSwap: true)
         m.sourceText = "   "

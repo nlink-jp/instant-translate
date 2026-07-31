@@ -29,6 +29,15 @@ final class TranslationModel: ObservableObject {
     /// A manual target-language override (base subtag). `nil` = automatic routing
     /// (`LanguagePolicy`). In-memory only — resets to automatic on app restart.
     @Published var targetOverride: String?
+    /// A manual *source*-language pin (base subtag). `nil` = automatic detection.
+    /// When set, detection is bypassed entirely — the pinned language is what the
+    /// routing policy and the Translation framework see. In-memory only, like
+    /// `targetOverride` — resets to automatic on app restart.
+    @Published var sourceOverride: String?
+
+    /// The source language everything downstream acts on: the pin when set,
+    /// otherwise whatever detection produced (which may be `nil`).
+    var resolvedSource: String? { sourceOverride ?? detectedSource }
 
     // Outputs
     @Published var translatedText: String = ""
@@ -53,14 +62,14 @@ final class TranslationModel: ObservableObject {
     }
 
     /// Recompute the target: a manual override wins; otherwise the policy routes from
-    /// the (possibly newly) detected source language.
+    /// the resolved source language (pin or detection).
     func resolveTarget() {
         if let targetOverride {
             targetLanguage = targetOverride     // keep the full identifier (e.g. "en-GB")
         } else {
             targetLanguage = settings()
                 .policy(local: localLanguage)
-                .target(forDetectedSource: detectedSource)
+                .target(forDetectedSource: resolvedSource)
         }
     }
 
@@ -90,7 +99,7 @@ final class TranslationModel: ObservableObject {
         errorMessage = nil
         resolveTarget()
         do {
-            let out = try await injected.translate(sourceText, source: detectedSource, target: targetLanguage)
+            let out = try await injected.translate(sourceText, source: resolvedSource, target: targetLanguage)
             apply(result: out)
         } catch {
             fail(error.localizedDescription)

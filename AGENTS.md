@@ -27,7 +27,7 @@ Sources/InstantTranslate/
   App.swift              @main; NSApplicationDelegateAdaptor(AppController) + placeholder Settings scene
   AppController.swift    NSStatusItem + translation NSPanel (hosts PanelView) + settings NSWindow; show/hide/focus; openSettings
   LanguagePolicy.swift   PURE routing: local / secondary / auto-swap → target lang
-  LanguageDetector.swift NLLanguageRecognizer dominant-language detection → base subtag
+  LanguageDetector.swift NLLanguageRecognizer detection → base subtag; PURE preferred-language tie-break (resolve)
   LoginItem.swift        SMAppService.mainApp wrapper ("launch at login" toggle)
   Languages.swift        curated fallback language list + localized name
   LanguageCatalog.swift  async OS-supported languages → LanguageOption list (region-qualified when needed)
@@ -95,8 +95,9 @@ docs/{en,ja}/            RFP
   byte-identical and emit no change at all. State lands in
   `TranslationModel.isComposing`; the rules live in the pure, unit-tested
   `AutoTranslatePolicy` (`action(forSourceText:…)` to arm, `mayRun(…)` at fire time).
-  `mayRun` also stands down when `LanguageDetector` returns `nil` — undetectable input
-  is exactly what triggers that OS picker. Manual translate is never gated.
+  `mayRun` also stands down when the *resolved* source (pin, else detection) is `nil` —
+  undetectable input is exactly what triggers that OS picker; a pinned source always
+  passes. Manual translate is never gated.
 - **The caret must be visible in the empty input** — focus is applied by
   `SourceTextView.updateNSView` calling `makeFirstResponder` when `focusToken` changes
   (a monotonic counter, since a `Bool` can't re-trigger focus when already `true`);
@@ -134,11 +135,25 @@ docs/{en,ja}/            RFP
 - **Manual target override** — `TranslationModel.targetOverride` (base subtag, nil =
   Auto) wins in `resolveTarget()` over the policy. It's in-memory only (resets to Auto
   on restart). The panel's "Auto + languages" picker binds it; changing it re-translates.
-- **Detect before routing** — `PanelView.translate()` runs `LanguageDetector` to set
-  `model.detectedSource`, *then* `LanguagePolicy` resolves the target. Without this
-  the target defaulted to the local language and native input became a same-language
-  pair, which the framework rejects (the "Japanese errors" bug). Same source==target
-  → echo, don't call the session.
+- **Source pin** — `TranslationModel.sourceOverride` (base subtag, nil = Auto) mirrors
+  the target override: in-memory only, bound to the panel's left picker (which lists
+  `LanguageCatalog.sourceOptions` — base languages only, variants collapsed), changing
+  it re-translates. `model.resolvedSource` (`sourceOverride ?? detectedSource`) is what
+  everything downstream uses — routing, the no-op echo check, `mayRun`, the pre-flight
+  status check, and the session configuration. A pin satisfies `mayRun` even when the
+  text is undetectable.
+- **Detect before routing, and hand the source to the framework** —
+  `PanelView.translate()` runs `LanguageDetector` (biased toward the local + secondary
+  languages via the pure `resolve(hypotheses:preferred:)` tie-break) to set
+  `model.detectedSource`, *then* `LanguagePolicy` resolves the target. Without
+  detection the target defaulted to the local language and native input became a
+  same-language pair, which the framework rejects (the "Japanese errors" bug). Same
+  base source==target → echo, don't call the session. The resolved source is passed
+  **explicitly** in `TranslationSession.Configuration(source:…)` — leaving it `nil`
+  made the framework re-detect on its own and raise the OS source-language picker
+  whenever *it* was unsure, even when we weren't. `nil` reaches the framework only
+  for a manual ⌘↩ on genuinely undetectable input (deliberate: the OS dialog is the
+  last resort there). Note the config rebuild check compares source *and* target.
 - **Settings is a separate AppKit `NSWindow`** (`AppController.openSettings`), not the
   SwiftUI `Settings` scene / `showSettingsWindow:` (unreliable for a menu-only
   `LSUIElement` app). An in-panel 3D card flip was tried and reverted — the 180°

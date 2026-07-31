@@ -22,6 +22,13 @@ and light. macOS 26+ (Apple silicon). Signed with Developer ID and notarized.
   your system language. When you type in *your own* language, the output is
   auto-swapped to a configured **secondary language** (e.g. English) — toggle in
   Settings. In short: *foreign → native, native → your chosen foreign*.
+  When detection is a close call (kanji-only text reads as Japanese *or* Chinese),
+  your own languages — system + secondary — win the tie, and the chosen language is
+  told to the translator explicitly, so macOS doesn't interrupt you with its
+  "which language is this?" picker.
+- **Pin the input language**: a source picker in the panel ("Auto" + languages)
+  skips detection entirely and always translates as the pinned language — for when
+  you know what you're pasting. Resets to Auto on restart.
 - **Manual target**: a picker in the panel lets you temporarily send the translation
   to a specific language instead of Auto (resets to Auto on restart).
 - **Global hotkey**: press **⌥⌘T** (rebindable in Settings) to open the panel from

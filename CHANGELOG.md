@@ -6,6 +6,25 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+- **Pin the input language**: a new source picker in the panel ("Auto" + languages,
+  mirroring the target picker) skips detection entirely and always translates the
+  input as the pinned language. Like the target override it is in-memory only and
+  resets to Auto on restart. While pinned, auto-translate no longer needs the text
+  to be detectable, so even very short input translates automatically.
+
+### Changed
+- **Ambiguous input no longer triggers the macOS source-language picker.** Two
+  changes together: (1) language detection now weighs your own languages — the
+  system language and the configured secondary language — so a close call
+  (e.g. kanji-only text that reads as Japanese *or* Chinese) resolves to the
+  language you actually use; (2) the resolved source is passed explicitly to the
+  Translation framework instead of letting it re-detect, so the OS has nothing to
+  ask about. The dialog can still appear for a *manual* ⌘↩ translate when the
+  input is genuinely undetectable (deliberate — the OS asking beats guessing).
+- The "Auto" source now shows what it detected next to the picker, mirroring the
+  target side.
+
 ## [0.1.3] - 2026-07-20
 
 ### Added

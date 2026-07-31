@@ -45,11 +45,11 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - `App.swift` — `@main`; `@NSApplicationDelegateAdaptor(AppController.self)` + a placeholder `Settings { EmptyView() }` scene (no window).
 - `AppController.swift` — `NSApplicationDelegate`/`ObservableObject`; owns the `NSStatusItem`, the resizable translation `NSPanel` (hosts `PanelView`), and the separate settings `NSWindow`. Show/hide/focus + `openSettings`.
 - `LanguagePolicy.swift` — **pure** target-language routing (local / secondary / auto-swap). Unit-tested.
-- `LanguageDetector.swift` — `NLLanguageRecognizer` dominant-language detection (→ base subtag). Feeds the policy. Unit-tested.
+- `LanguageDetector.swift` — `NLLanguageRecognizer` detection (→ base subtag) with a **pure** preferred-language tie-break (`resolve(hypotheses:preferred:)`, biased toward local + secondary). Feeds the policy and the session's explicit source. Unit-tested.
 - `HotKey.swift` — `HotKeyCombo` (persist/display/Carbon masks, unit-tested) + `GlobalHotKey` (Carbon `RegisterEventHotKey`).
 - `HotKeyRecorder.swift` — click-to-record shortcut control (local `keyDown` monitor).
 - `SettingsStore.swift` — `UserDefaults` keys/defaults + snapshot; builds a `LanguagePolicy`.
-- `TranslationModel.swift` — `ObservableObject`; UI state + the volatile most-recent entry + `targetOverride` (manual target, nil = Auto). DI seam via `TextTranslating`.
+- `TranslationModel.swift` — `ObservableObject`; UI state + the volatile most-recent entry + `targetOverride` (manual target, nil = Auto) + `sourceOverride` (source pin, nil = Auto; `resolvedSource` = pin ?? detection). DI seam via `TextTranslating`.
 - `LoginItem.swift` — `SMAppService.mainApp` wrapper for the "launch at login" toggle.
 - `Languages.swift` — curated fallback language list + localized names for the pickers.
 - `LanguageCatalog.swift` — async load of OS-supported languages (`LanguageAvailability`) → `[LanguageOption]` (region-qualified when a base has >1 variant); pickers bind to it.
@@ -95,12 +95,15 @@ programmatic Translation API and this app's deployment target are macOS 26.
   itself has to take key status: `TranslationPanel.canBecomeKey`, `makeKey()` +
   a deferred re-assert in `showPanel`, and a `didBecomeKeyNotification` observer in
   `SourceTextView`. Don't drop any of the three — each covers a different ordering.
-- **Input language is detected before routing**: `PanelView.translate()` runs
-  `LanguageDetector` first, then `LanguagePolicy` picks the target. If the detected
-  source equals the target (e.g. native input with auto-swap off), it echoes instead
-  of translating — the framework errors on identical-language pairs (this was the
-  "Japanese input errors" bug: with no detection the target stayed the local
-  language → ja→ja).
+- **Input language is detected before routing, and passed to the framework**:
+  `PanelView.translate()` resolves the source (pin, else `LanguageDetector` with a
+  local+secondary preference tie-break), then `LanguagePolicy` picks the target. If
+  the resolved source equals the target by base (e.g. native input with auto-swap
+  off), it echoes instead of translating — the framework errors on identical-language
+  pairs (this was the "Japanese input errors" bug). The resolved source goes
+  **explicitly** into `TranslationSession.Configuration(source:…)`; a `nil` source
+  makes the OS re-detect and raise its own source-language picker when unsure, so
+  `nil` is allowed only for a manual ⌘↩ on undetectable input.
 - **Settings is a separate AppKit `NSWindow`** (`AppController.openSettings` →
   `ensureSettingsWindow`), not the SwiftUI `Settings` scene / `showSettingsWindow:`
   (unreliable for a menu-only `LSUIElement` app). An in-panel 3D "card flip"

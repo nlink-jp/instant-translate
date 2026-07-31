@@ -30,12 +30,14 @@ enum AutoTranslatePolicy {
     /// Whether an armed auto-translation may actually fire once the timer elapses.
     ///
     /// - A composition may have opened while the timer was running — wait it out.
-    /// - `detectedSource == nil` means the text isn't recognisable as any language yet
-    ///   (a couple of characters, or a half-typed romaji run). Handing that to the
-    ///   translator makes macOS ask the user which language it is, in a picker that
-    ///   steals focus mid-sentence — so an *automatic* run stands down and waits for
-    ///   more text. A manual Translate is never gated by this: the user asked for it.
-    static func mayRun(detectedSource: String?, isComposing: Bool) -> Bool {
-        detectedSource != nil && !isComposing
+    /// - `resolvedSource` is the pinned source language, or the detected one when
+    ///   nothing is pinned. `nil` means the text isn't recognisable as any language
+    ///   yet (a couple of characters, or a half-typed romaji run). Handing that to
+    ///   the translator makes macOS ask the user which language it is, in a picker
+    ///   that steals focus mid-sentence — so an *automatic* run stands down and waits
+    ///   for more text. A pin makes the source known, so the gate never holds it
+    ///   back. A manual Translate is never gated by this: the user asked for it.
+    static func mayRun(resolvedSource: String?, isComposing: Bool) -> Bool {
+        resolvedSource != nil && !isComposing
     }
 }

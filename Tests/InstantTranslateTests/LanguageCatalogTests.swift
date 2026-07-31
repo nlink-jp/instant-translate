@@ -38,4 +38,26 @@ final class LanguageCatalogTests: XCTestCase {
         let names = LanguageCatalog.options(from: infos, locale: en).map(\.name)
         XCTAssertEqual(names, names.sorted { $0.localizedCompare($1) == .orderedAscending })
     }
+
+    // MARK: - sourceOptions — the base-language list for the source pin picker
+
+    func testSourceOptionsCollapseRegionalVariants() {
+        let options = [
+            LanguageOption(id: "en", name: "English (United States)"),
+            LanguageOption(id: "en-GB", name: "English (United Kingdom)"),
+            LanguageOption(id: "ja", name: "Japanese"),
+        ]
+        let sources = LanguageCatalog.sourceOptions(from: options, locale: en)
+        XCTAssertEqual(sources.map(\.id), ["en", "ja"])
+        XCTAssertEqual(sources.map(\.name), ["English", "Japanese"])   // no qualifier
+    }
+
+    func testSourceOptionsStaySortedByName() {
+        let options = [
+            LanguageOption(id: "ja", name: "Japanese"),
+            LanguageOption(id: "fr", name: "French"),
+        ]
+        XCTAssertEqual(LanguageCatalog.sourceOptions(from: options, locale: en).map(\.id),
+                       ["fr", "ja"])
+    }
 }

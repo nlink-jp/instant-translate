@@ -23,10 +23,13 @@ struct PanelView: View {
     /// Idle time after the last keystroke before an automatic translation fires.
     private let autoTranslateDelay: Duration = .milliseconds(600)
 
-    /// Binding to the model's manual target override (nil = Auto). `@EnvironmentObject`
-    /// doesn't provide `$model.property`, so build it explicitly.
+    /// Bindings to the model's manual overrides (nil = Auto). `@EnvironmentObject`
+    /// doesn't provide `$model.property`, so build them explicitly.
     private var targetOverrideBinding: Binding<String?> {
         Binding(get: { model.targetOverride }, set: { model.targetOverride = $0 })
+    }
+    private var sourceOverrideBinding: Binding<String?> {
+        Binding(get: { model.sourceOverride }, set: { model.sourceOverride = $0 })
     }
 
     var body: some View {
@@ -67,6 +70,24 @@ struct PanelView: View {
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
 
             HStack(spacing: 6) {
+                // Source pin: Auto = detect, a language = translate as that language
+                // (also keeps the OS from ever asking which language the input is).
+                Picker("", selection: sourceOverrideBinding) {
+                    Text("Auto").tag(String?.none)
+                    Divider()
+                    ForEach(catalog.sourceOptions) { opt in
+                        Text(opt.name).tag(Optional(opt.id))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+                if model.sourceOverride == nil, let detected = model.detectedSource {
+                    // Hint what "Auto" detected in the current input.
+                    Text("(\(catalog.name(for: detected)))")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
                 Text("→").foregroundStyle(.secondary)
                 Picker("", selection: targetOverrideBinding) {
                     Text("Auto").tag(String?.none)
@@ -129,6 +150,11 @@ struct PanelView: View {
             // when there's nothing to translate yet).
             if isSourceEmpty { model.resolveTarget() } else { translate() }
         }
+        .onChange(of: model.sourceOverride) { _, _ in
+            // Same for pinning/unpinning the source — it can change the routed target
+            // (auto-swap) and the translation itself.
+            if isSourceEmpty { model.resolveTarget() } else { translate() }
+        }
         .translationTask(configuration) { session in
             await run(session)
         }
@@ -161,37 +187,44 @@ struct PanelView: View {
         model.sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// Detect the input language, resolve the target from the policy, then build (or
-    /// re-arm) the translation configuration. The session's source is left `nil` so
-    /// the framework auto-detects; the *detected* language is used only to route the
-    /// target (e.g. native input → the secondary language when auto-swap is on).
+    /// Resolve the source language (pin, or detection biased toward the user's local +
+    /// secondary languages), resolve the target from the policy, then build (or
+    /// re-arm) the translation configuration. The resolved source is passed
+    /// *explicitly* to the session: with a source of its own the framework never
+    /// raises its "which language is this?" picker. Only when nothing is pinned and
+    /// nothing is detectable does the source stay `nil` — a manual run then leaves
+    /// the last word to the OS dialog (deliberate; automatic runs stand down).
     ///
-    /// `automatic` runs are additionally gated by `AutoTranslatePolicy.mayRun` — they
-    /// stand down rather than provoke the OS's source-language picker mid-typing.
+    /// `automatic` runs are additionally gated by `AutoTranslatePolicy.mayRun`.
     private func translate(automatic: Bool = false) {
         guard !isSourceEmpty else { return }
         debounceTask?.cancel()          // a manual translate supersedes any pending auto-run
         model.errorMessage = nil
-        model.detectedSource = LanguageDetector.detect(model.sourceText)
+        let settings = SettingsStore.current()
+        model.detectedSource = LanguageDetector.detect(
+            model.sourceText,
+            preferred: [SettingsStore.localLanguage(), settings.secondaryLanguage])
         model.resolveTarget()           // before the guard, so the "Auto (…)" hint stays honest
-        if automatic, !AutoTranslatePolicy.mayRun(detectedSource: model.detectedSource,
+        if automatic, !AutoTranslatePolicy.mayRun(resolvedSource: model.resolvedSource,
                                                   isComposing: model.isComposing) {
             return
         }
 
         // Identical source/target languages error out in the framework — short-circuit
         // and echo the input instead (e.g. native input with auto-swap turned off).
-        if let src = model.detectedSource, src == model.targetLanguage {
+        if let src = model.resolvedSource,
+           LanguagePolicy.base(src) == LanguagePolicy.base(model.targetLanguage) {
             model.apply(result: model.sourceText)
             return
         }
 
         model.isTranslating = true
+        let source = model.resolvedSource.map { Locale.Language(identifier: $0) }
         let target = Locale.Language(identifier: model.targetLanguage)
-        if configuration?.target == target {
-            configuration?.invalidate()    // same target → just re-run the task
+        if let current = configuration, current.source == source, current.target == target {
+            configuration?.invalidate()    // same pair → just re-run the task
         } else {
-            configuration = TranslationSession.Configuration(source: nil, target: target)
+            configuration = TranslationSession.Configuration(source: source, target: target)
         }
     }
 
@@ -199,7 +232,7 @@ struct PanelView: View {
     private func run(_ session: TranslationSession) async {
         // Pre-flight: if the OS can't translate this pair at all, say so clearly
         // instead of surfacing a cryptic framework error.
-        if let src = model.detectedSource {
+        if let src = model.resolvedSource {
             let status = await LanguageAvailability().status(
                 from: Locale.Language(identifier: src),
                 to: Locale.Language(identifier: model.targetLanguage))

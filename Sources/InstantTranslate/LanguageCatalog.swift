@@ -45,6 +45,25 @@ final class LanguageCatalog: ObservableObject {
         options.first { $0.id == id }?.name ?? Languages.name(LanguagePolicy.base(id))
     }
 
+    /// Options for the *source* pin picker: regional variants collapse to one base
+    /// entry ("English", not one row per region) — the input side of a translation
+    /// has no meaningful region, and detection yields base subtags anyway.
+    var sourceOptions: [LanguageOption] { LanguageCatalog.sourceOptions(from: options) }
+
+    /// Pure — unit-tested.
+    static func sourceOptions(from options: [LanguageOption],
+                              locale: Locale = .current) -> [LanguageOption] {
+        var seen = Set<String>()
+        var out: [LanguageOption] = []
+        for opt in options {
+            let base = LanguagePolicy.base(opt.id)
+            guard seen.insert(base).inserted else { continue }
+            out.append(LanguageOption(id: base,
+                                      name: locale.localizedString(forLanguageCode: base) ?? base))
+        }
+        return out.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
     struct LangInfo: Equatable {
         let id: String
         let base: String
