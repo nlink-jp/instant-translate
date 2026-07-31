@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-31
+
 ### Added
 - **Pin the input language**: a new source picker in the panel ("Auto" + languages,
   mirroring the target picker) skips detection entirely and always translates the

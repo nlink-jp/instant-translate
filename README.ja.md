@@ -10,8 +10,6 @@ macOS 標準の **Translation framework**（オンデバイス翻訳）を使う
 instant-translate、と使い分けます。macOS 26 以降（Apple silicon）。Developer ID
 署名 + notarize 済み。
 
-> **ステータス: リリース前（Phase 1 scaffold）。**
-
 ## できること
 
 - **メニューバー**: クリックで翻訳パネルを開く。

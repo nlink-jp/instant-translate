@@ -9,8 +9,6 @@ The lightweight sibling of [`quick-translate`](https://github.com/nlink-jp/quick
 want an LLM's quality/customization; use instant-translate when you want it fast
 and light. macOS 26+ (Apple silicon). Signed with Developer ID and notarized.
 
-> **Status: pre-release (Phase 1 scaffold).**
-
 ## What it does
 
 - **Menu bar**: click to open the translation panel.
