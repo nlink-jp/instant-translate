@@ -66,4 +66,6 @@ BREW_DESC := Lightweight menu-bar translator using macOS on-device Translation
 BREW_NAME := $(NAME)
 BREW_APP := $(APP_NAME).app
 BREW_BUNDLE_ID := $(BUNDLE_ID)
+# macOS 26 Translation API — the cask floor must be :tahoe, not the :big_sur default.
+BREW_MACOS_FLOOR := :tahoe
 include scripts/release-brew.mk

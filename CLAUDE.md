@@ -119,16 +119,11 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - **Only OS-supported languages in pickers** — `LanguageCatalog` loads them async from
   `LanguageAvailability`; `PanelView.run` pre-checks `status(from:to:)` for a clear
   unsupported-pair message.
-- **Cask min-macOS regresses on every `make brew`** — the published cask must say
-  `depends_on macos: :tahoe` (this app needs the macOS 26 Translation API), but
-  `scripts/cask.rb.tmpl` MUST stay byte-identical to the shared
-  `.github/templates/cask.rb.tmpl` (`check-org.sh` fails on any drift), and the
-  shared template's floor is `:big_sur`. So regenerating the cask silently reverts
-  the floor (it shipped wrong at v0.2.0 before being caught). After every
-  `make brew`, edit `Casks/instant-translate.rb` in the homebrew-tap checkout back
-  to `:tahoe`, commit, push, and re-run `brew audit --cask --online`. The real fix
-  (a `@MACOS_FLOOR@` placeholder in the shared template) is an org-wide template
-  change — tracked separately.
+- **Cask min-macOS floor is `:tahoe`** — set via `BREW_MACOS_FLOOR := :tahoe` in the
+  Makefile (the shared `cask.rb.tmpl` carries a `@MACOS_FLOOR@` placeholder that
+  `gen-brew.sh` substitutes; default `:big_sur`). `make brew` now generates the
+  correct floor — no post-generation hand edit of the tap is needed. Don't remove
+  the Makefile var: this app needs the macOS 26 Translation API.
 
 ## Design reference
 
