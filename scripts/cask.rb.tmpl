@@ -12,6 +12,7 @@ cask "@NAME@" do
   depends_on macos: @MACOS_FLOOR@
 
   app "@APP@"
+@BINARY_STANZA@
 
   zap trash: [
     "~/Library/Caches/@BUNDLE_ID@",
