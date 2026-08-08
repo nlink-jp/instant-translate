@@ -6,6 +6,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-08
+
 ### Added
 - **The panel now says what it is doing.** A status line under the language pickers
   reports every state: ready, waiting for you to pause typing, waiting for your
