@@ -33,6 +33,14 @@ instant-translate、と使い分けます。macOS 26 以降（Apple silicon）�
   開いたときにクリップボードの内容を原文に流し込んで自動翻訳することもできます。
 - **OS 対応言語のみ**: ピッカーには Mac の Translation framework が実際に対応する言語だけが
   並びます。未対応のペアは分かりやすく通知します。
+- **いま何をしているかを必ず表示**: ピッカーの下のステータス行がすべての状態を伝えます —
+  入力が止まるのを待っている / IME の確定を待っている / まだ言語を判定できない /
+  言語モデルをダウンロード中 / 翻訳中 / 完了。**意図的に翻訳していない**状態も
+  その理由を名乗るので、固まったように見えることがありません。
+- **対処できるエラー表示**: 翻訳が失敗したとき、パネルは原因（「macOS can't translate
+  Japanese → Korean.」）と、次にすべきこと（「Choose a different target language with
+  the right picker.」）と、技術的な原因そのものを表示します。最後の 1 行は選択可能なので、
+  そのまま不具合報告に貼れます。
 - **ログイン時に起動**: 任意（設定 → General）。
 - **バージョン表示**: パネル見出しのタイトル横と、設定画面の末尾。
 - **揮発する履歴**: 直前の翻訳のみをメモリ上に保持（ディスクに書きません）。
@@ -45,7 +53,14 @@ instant-translate、と使い分けます。macOS 26 以降（Apple silicon）�
 
 翻訳は macOS の Translation framework によって **完全にオンデバイス** で行われます。
 言語ペアを初めて使うときに、macOS が（軽量な OS 管理の）モデルを同意のうえ
-ダウンロードします。アプリ自体は **ネットワーク・API キー・クレデンシャル一切不要**。
+ダウンロードします。このときパネルは「Preparing the Japanese → English language
+model…」と表示するので、初回だけの待ち時間に理由が見えます。アプリ自体は
+**ネットワーク・API キー・クレデンシャル一切不要**。
+
+## 設計メモ
+
+- [ADR-0001 — パネルの状態表示と失敗メッセージ](docs/ja/adr/0001-panel-feedback-and-failure-messages.ja.md)
+  ([en](docs/en/adr/0001-panel-feedback-and-failure-messages.md))
 
 ## ビルド
 

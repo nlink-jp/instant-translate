@@ -33,6 +33,15 @@ and light. macOS 26+ (Apple silicon). Signed with Developer ID and notarized.
   anywhere. On open it can seed the source from your clipboard and translate it.
 - **Only OS-supported languages**: the pickers list exactly the languages your Mac's
   Translation framework supports; unsupported pairs are reported clearly.
+- **Always says what it's doing**: a status line under the pickers reports every
+  state — waiting for you to pause typing, waiting for your input method to commit,
+  can't identify the language yet, downloading the language model, translating,
+  done. The states where the app is *deliberately* not translating say so, instead
+  of looking like a hang.
+- **Failures you can act on**: when a translation fails, the panel names the cause
+  ("macOS can't translate Japanese → Korean."), what to do about it ("Choose a
+  different target language with the right picker."), and the exact technical
+  cause, selectable, so you can paste it into a bug report.
 - **Launch at login**: optional (Settings → General).
 - **Version**: shown next to the title in the panel header, and at the foot of Settings.
 - **Volatile history**: the most recent translation is kept in memory only (never
@@ -45,8 +54,14 @@ grant — only the OS's own one-time language-model download consent.
 
 Translation is performed entirely **on-device** by macOS's Translation framework.
 The first time you use a language pair, macOS downloads its (small, OS-managed)
-model with your consent. The app itself needs **no network, no API key, no
-credentials**.
+model with your consent — the panel announces this ("Preparing the Japanese →
+English language model…") so the one-off wait has a visible reason. The app itself
+needs **no network, no API key, no credentials**.
+
+## Design notes
+
+- [ADR-0001 — Panel feedback and failure messages](docs/en/adr/0001-panel-feedback-and-failure-messages.md)
+  ([ja](docs/ja/adr/0001-panel-feedback-and-failure-messages.ja.md))
 
 ## Build
 

@@ -42,8 +42,17 @@ final class TranslationModel: ObservableObject {
     // Outputs
     @Published var translatedText: String = ""
     @Published var targetLanguage: String
-    @Published var errorMessage: String?
-    @Published var isTranslating: Bool = false
+    /// The current failure, if any — headline / recovery / technical detail. Set by
+    /// `fail(_:)`, cleared by every path that starts or clears a translation.
+    @Published var failure: FailureMessage?
+    /// What the panel is doing (or deliberately not doing). Drives the status row;
+    /// see `TranslationStatus`.
+    @Published var phase: TranslationPhase = .idle
+
+    /// True while work is actually in flight (as opposed to waiting or held back).
+    var isTranslating: Bool { phase == .preparing || phase == .translating }
+    /// The failure headline, for call sites that only need one line.
+    var errorMessage: String? { failure?.headline }
 
     /// The single volatile "most recent" entry (not persisted).
     @Published private(set) var lastEntry: HistoryEntry?
@@ -74,10 +83,13 @@ final class TranslationModel: ObservableObject {
     }
 
     /// Record a completed translation as the (volatile) most-recent entry.
-    func apply(result: String) {
+    ///
+    /// `echoed` marks the source == target pass-through, which produces output
+    /// identical to the input and needs the status row to say why.
+    func apply(result: String, echoed: Bool = false) {
         translatedText = result
-        errorMessage = nil
-        isTranslating = false
+        failure = nil
+        phase = echoed ? .echoed : .done
         let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
             lastEntry = HistoryEntry(source: sourceText, translation: result, target: targetLanguage)
@@ -85,9 +97,15 @@ final class TranslationModel: ObservableObject {
     }
 
     /// Record a failure.
-    func fail(_ message: String) {
-        errorMessage = message
-        isTranslating = false
+    func fail(_ message: FailureMessage) {
+        failure = message
+        phase = .failed
+    }
+
+    /// Record a failure from a thrown error, phrased with the languages in play.
+    func fail(_ error: any Error, sourceName: String?, targetName: String) {
+        fail(TranslationFailure.classify(error).message(sourceName: sourceName,
+                                                        targetName: targetName))
     }
 
     /// Tests / previews: run the injected translator end-to-end. In production this
@@ -95,14 +113,14 @@ final class TranslationModel: ObservableObject {
     /// `apply(result:)` / `fail(_:)` directly.
     func translateUsingInjected() async {
         guard let injected else { return }
-        isTranslating = true
-        errorMessage = nil
+        phase = .translating
+        failure = nil
         resolveTarget()
         do {
             let out = try await injected.translate(sourceText, source: resolvedSource, target: targetLanguage)
             apply(result: out)
         } catch {
-            fail(error.localizedDescription)
+            fail(error, sourceName: resolvedSource, targetName: targetLanguage)
         }
     }
 }

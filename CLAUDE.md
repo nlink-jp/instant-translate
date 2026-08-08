@@ -49,7 +49,9 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - `HotKey.swift` — `HotKeyCombo` (persist/display/Carbon masks, unit-tested) + `GlobalHotKey` (Carbon `RegisterEventHotKey`).
 - `HotKeyRecorder.swift` — click-to-record shortcut control (local `keyDown` monitor).
 - `SettingsStore.swift` — `UserDefaults` keys/defaults + snapshot; builds a `LanguagePolicy`.
-- `TranslationModel.swift` — `ObservableObject`; UI state + the volatile most-recent entry + `targetOverride` (manual target, nil = Auto) + `sourceOverride` (source pin, nil = Auto; `resolvedSource` = pin ?? detection). DI seam via `TextTranslating`.
+- `TranslationModel.swift` — `ObservableObject`; UI state + `phase` + `failure` + the volatile most-recent entry + `targetOverride` (manual target, nil = Auto) + `sourceOverride` (source pin, nil = Auto; `resolvedSource` = pin ?? detection). DI seam via `TextTranslating`.
+- `TranslationFailure.swift` — `classify(Error)` (the only place that matches `TranslationError`) + a **pure** `message(sourceName:targetName:)` → headline / recovery / technical detail. Unit-tested.
+- `TranslationStatus.swift` — `TranslationPhase` (every state the panel can be in, including the ones that withhold a translation on purpose) + a **pure** `display(...)` for the status row. Unit-tested.
 - `LoginItem.swift` — `SMAppService.mainApp` wrapper for the "launch at login" toggle.
 - `Languages.swift` — curated fallback language list + localized names for the pickers.
 - `LanguageCatalog.swift` — async load of OS-supported languages (`LanguageAvailability`) → `[LanguageOption]` (region-qualified when a base has >1 variant); pickers bind to it.
@@ -119,6 +121,24 @@ programmatic Translation API and this app's deployment target are macOS 26.
 - **Only OS-supported languages in pickers** — `LanguageCatalog` loads them async from
   `LanguageAvailability`; `PanelView.run` pre-checks `status(from:to:)` for a clear
   unsupported-pair message.
+- **Never surface a raw `TranslationError`** — `localizedDescription` reads
+  "Unable to Translate" for seven of its eight cases and every case bridges to
+  `NSError` code 1, so the thrown error is neither showable nor distinguishable by
+  shape. `TranslationFailure.classify` matches on `TranslationError`'s custom `~=`
+  (verified to discriminate as an exact 8×8 diagonal) and is the only place allowed
+  to touch that type; `message(...)` phrases it, and an unplaced error keeps
+  `failureReason ?? localizedDescription` plus domain/code. ADR-0001.
+- **Silent states are bugs** — anything that withholds a translation (IME
+  composition, undetectable input, armed debounce, source == target echo, model
+  download) must set a `TranslationPhase` and get a line in
+  `TranslationStatus.display`. All of these previously looked identical to a hang.
+  `isTranslating` is derived from `phase`, not stored — don't reintroduce a second
+  source of truth. ADR-0001.
+- **The language-model download is prepared explicitly** — `PanelView.run` checks
+  `session.isReady` and calls `session.prepareTranslation()` under a `.preparing`
+  phase. The OS consent appears either way; this puts it at a labelled moment.
+  Note this does *not* loosen the separate rule about the OS **source-language**
+  picker, which the app still works to never trigger. ADR-0001.
 - **Cask min-macOS floor is `:tahoe`** — set via `BREW_MACOS_FLOOR := :tahoe` in the
   Makefile (the shared `cask.rb.tmpl` carries a `@MACOS_FLOOR@` placeholder that
   `gen-brew.sh` substitutes; default `:big_sur`). `make brew` now generates the
@@ -128,4 +148,5 @@ programmatic Translation API and this app's deployment target are macOS 26.
 ## Design reference
 
 - RFP: `docs/ja/instant-translate-rfp.ja.md` (`docs/en/instant-translate-rfp.md`)
+- ADRs: `docs/{en,ja}/adr/` — 0001 panel feedback and failure messages
 - Sibling: https://github.com/nlink-jp/quick-translate

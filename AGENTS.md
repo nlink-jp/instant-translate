@@ -34,16 +34,19 @@ Sources/InstantTranslate/
   HotKey.swift           HotKeyCombo (persist/display/Carbon) + GlobalHotKey (RegisterEventHotKey)
   HotKeyRecorder.swift   click-to-record shortcut control (local keyDown monitor)
   SettingsStore.swift    UserDefaults keys/defaults + snapshot; builds LanguagePolicy
-  TranslationModel.swift ObservableObject; UI state + volatile last entry; DI seam
+  TranslationModel.swift ObservableObject; UI state + phase + failure + volatile last entry; DI seam
+  TranslationFailure.swift  classify(Error) → named failure; PURE message(sourceName:targetName:)
+  TranslationStatus.swift   TranslationPhase + PURE display() → status-row symbol/text/spinner/tone
   TextTranslating.swift  protocol + EchoTranslator stub (tests/previews)
   PanelView.swift        the panel; owns the real TranslationSession via .translationTask
   SettingsView.swift     settings Form (@AppStorage)
 Tests/InstantTranslateTests/
-  LanguagePolicyTests, SettingsStoreTests, TranslationModelTests
+  LanguagePolicyTests, SettingsStoreTests, TranslationModelTests,
+  TranslationFailureTests, TranslationStatusTests
 Info.plist               LSUIElement=true, LSMinimumSystemVersion=26.0
 scripts/                 codesign / notarize / make-icns / gen-brew / release-brew.mk / cask.rb.tmpl
 assets/                  AppIcon-1024.png (→ AppIcon.icns at build; absent for now)
-docs/{en,ja}/            RFP
+docs/{en,ja}/            RFP + adr/
 ```
 
 ## Gotchas / conventions
@@ -56,6 +59,25 @@ docs/{en,ja}/            RFP
   (no UI / framework imports) so it stays unit-testable. `TranslationModel` is
   `@MainActor` and takes an injected `TextTranslating` for tests/previews; the real
   session path is in `PanelView`.
+- **Never show a raw `TranslationError`** — `localizedDescription` is
+  `"Unable to Translate"` for seven of its eight cases and every case bridges to
+  `NSError` domain `Translation.TranslationError` **code 1**, so the thrown error
+  is neither showable nor distinguishable by shape. `TranslationError` is a struct
+  with a custom `~=`, and that operator *does* discriminate cleanly (verified as an
+  exact 8×8 diagonal), so `TranslationFailure.classify` matches on it and is the
+  only place in the app that touches the framework's error type. `message(...)` is
+  pure. Unplaced errors become `.unknown` carrying `failureReason ??
+  localizedDescription` plus domain/code — never drop that, it is all an
+  unanticipated error leaves behind. ADR-0001.
+- **Every state the panel is in must be nameable** — `TranslationPhase` covers the
+  states that *withhold* a translation on purpose (IME composition, undetectable
+  input, debounce armed, echo) as well as the ones doing work. Before it existed
+  they were all indistinguishable from a hang. A new "quietly do nothing" branch
+  needs a phase and a line in `TranslationStatus.display`, not a bare `return`.
+  ADR-0001.
+- **`isTranslating` is derived, not stored** — it is `phase == .preparing ||
+  .translating`. Setting a phase is the only way to move the UI; there is no second
+  source of truth to drift.
 - **History is volatile** — most-recent entry only, in memory, never persisted.
 - **Settings persist via UserDefaults** — `SettingsStore` reads; `SettingsView`
   binds the same keys via `@AppStorage`. `SettingsKey.registerDefaults()` runs at
@@ -126,6 +148,17 @@ docs/{en,ja}/            RFP
   variant is preserved: `LanguagePolicy` compares by `base(...)` but returns the full
   identifier as the target; `TranslationModel.resolveTarget` keeps `targetOverride`
   verbatim. `PanelView.run` pre-checks `status(from:to:)` for a clear unsupported message.
+- **The model download is prepared explicitly, not stumbled into** — `PanelView.run`
+  checks `session.isReady` and, when false, enters `.preparing` and calls
+  `session.prepareTranslation()` before translating. The OS raises its download
+  consent for that pair either way; doing it here moves it to a moment the panel has
+  already labelled, instead of an unexplained multi-second freeze inside
+  `session.translate`. Gate on `isReady` (the session's own answer for the exact
+  configuration about to run), not on `LanguageAvailability.status == .supported`;
+  `status` keeps its separate job of rejecting unsupported pairs up front. This is
+  narrower than the blanket "never let the OS raise a dialog" stance below — that one
+  is about the *source-language* picker, which is avoidable and interrupts typing.
+  ADR-0001.
 - **Launch at login** — `LoginItem` wraps `SMAppService.mainApp`; `SMAppService` is the
   source of truth (the Settings toggle mirrors `status`, refreshes `.onAppear`, no
   persisted flag). Registration only works from the signed `.app`, not `swift run`.
@@ -173,7 +206,14 @@ seed, manual target picker, `LanguageAvailability` (supported-language pickers +
 unsupported-pair messaging). **Selected-text translation was descoped** (would have
 needed Accessibility) — the app needs no TCC grant. See the RFP (with its scope note).
 
+Post-0.2.0: the panel reports its state (`TranslationPhase` + status row) and
+classifies framework failures into actionable messages (`TranslationFailure`) —
+ADR-0001.
+
 ## Design reference
 
 - RFP: `docs/ja/instant-translate-rfp.ja.md`
+- ADR-0001 — panel feedback and failure messages:
+  `docs/en/adr/0001-panel-feedback-and-failure-messages.md`
+  (`docs/ja/adr/0001-panel-feedback-and-failure-messages.ja.md`)
 - Sibling: https://github.com/nlink-jp/quick-translate

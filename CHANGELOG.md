@@ -6,6 +6,49 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+- **The panel now says what it is doing.** A status line under the language pickers
+  reports every state: ready, waiting for you to pause typing, waiting for your
+  input method to commit, "can't tell the language yet — type more, or pin it on
+  the left", preparing the language model, translating (with a spinner), and
+  translated. The states where the app is *deliberately* not translating — an open
+  IME composition, input too short to identify — now say so instead of looking
+  identical to a hang.
+- **The first use of a language pair is announced.** macOS downloads the on-device
+  model for a pair the first time you use it; the panel now prepares it explicitly
+  and shows "Preparing the Japanese → English language model — the first use
+  downloads it…", instead of freezing for several seconds with no explanation.
+- **Passing the input through unchanged is explained.** When the input is already
+  in the target language, the status line says "Input is already Japanese — shown
+  unchanged" rather than silently showing output identical to the input.
+
+### Changed
+- **Translation failures are legible.** Every failure now names its cause, what to
+  do about it, and the exact technical error — the last one selectable, so it can
+  be pasted into a bug report (this app has no log file). Previously every failure
+  read:
+
+  > Couldn't translate — the language model may still be downloading. Unable to Translate
+
+  `TranslationError.localizedDescription` collapses seven of its eight cases to
+  that same "Unable to Translate", and all of them bridge to `NSError` code 1, so
+  an unsupported language pair, an internal service fault and a genuinely missing
+  model were indistinguishable — and the "may still be downloading" prefix was a
+  guess that was wrong in most of them. The cases are now told apart properly and
+  phrased for a person, e.g.:
+
+  > macOS can't translate Japanese → Korean.
+  > Choose a different target language on the right, or pin a different input language on the left.
+  > `TranslationError.unsupportedLanguagePairing`
+
+  A missing model additionally points at System Settings › General › Language &
+  Region › Translation Languages as an alternative to waiting.
+- The panel's minimum height is now 320 pt (was 280 pt), to fit the status line
+  above the two text areas. Panels already sized larger are unaffected.
+
+See [ADR-0001](docs/en/adr/0001-panel-feedback-and-failure-messages.md)
+([ja](docs/ja/adr/0001-panel-feedback-and-failure-messages.ja.md)).
+
 ## [0.2.0] - 2026-07-31
 
 ### Added

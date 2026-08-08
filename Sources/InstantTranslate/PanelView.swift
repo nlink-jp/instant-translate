@@ -111,6 +111,8 @@ struct PanelView: View {
                     .disabled(isSourceEmpty)
             }
 
+            statusRow
+
             Divider()
 
             ScrollView {
@@ -121,11 +123,8 @@ struct PanelView: View {
             }
             .frame(minHeight: 80, maxHeight: .infinity)
 
-            if let err = model.errorMessage {
-                Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
+            if let failure = model.failure {
+                failureBlock(failure)
             }
 
             HStack {
@@ -143,7 +142,12 @@ struct PanelView: View {
             // A committed composition often leaves the text unchanged (the marked run
             // and the confirmed run are the same string), so the source-text observer
             // above never fires — arm the timer from the composition edge instead.
-            if composing { debounceTask?.cancel() } else { scheduleAutoTranslate(model.sourceText) }
+            if composing {
+                debounceTask?.cancel()
+                model.phase = .composing     // say why nothing is happening
+            } else {
+                scheduleAutoTranslate(model.sourceText)
+            }
         }
         .onChange(of: model.targetOverride) { _, _ in
             // Switching the target re-runs the translation (or just updates the label
@@ -160,6 +164,79 @@ struct PanelView: View {
         }
     }
 
+    // MARK: - Status & failure
+
+    /// Always present, so the panel never goes silent and the layout never jumps.
+    /// The interesting states are the ones where *nothing* is running on purpose
+    /// (IME composition, undetectable input, debounce armed) — those are the ones
+    /// that used to look like a hang.
+    private var statusRow: some View {
+        let status = TranslationStatus.display(
+            phase: model.phase,
+            hasInput: !isSourceEmpty,
+            autoTranslateEnabled: autoTranslate,
+            sourceName: model.resolvedSource.map { catalog.name(for: $0) },
+            targetName: catalog.name(for: model.targetLanguage))
+        return HStack(spacing: 5) {
+            // Spinner and symbol share the slot, so the text doesn't shift sideways
+            // when work starts or stops.
+            Group {
+                if status.showsSpinner {
+                    ProgressView().controlSize(.small)
+                } else if let symbol = status.symbol {
+                    Image(systemName: symbol)
+                }
+            }
+            .frame(width: 16, height: 16)
+            Text(status.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .font(.caption)
+        .foregroundStyle(tint(for: status.tone))
+        .frame(height: 18)
+        .help(status.text)          // the full text, when the row truncates
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(status.text)
+    }
+
+    private func tint(for tone: StatusDisplay.Tone) -> Color {
+        switch tone {
+        case .neutral: return .secondary
+        case .active:  return .accentColor
+        case .success: return .green
+        case .failure: return .red
+        }
+    }
+
+    /// A failure, in three registers: what happened, what to do, and the exact cause.
+    /// The last one is selectable because this app has no log file — a bug report can
+    /// only carry what the panel lets you copy (same reasoning as the version string).
+    private func failureBlock(_ failure: FailureMessage) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(failure.headline)
+                .font(.callout)
+                .foregroundStyle(.red)
+            if let recovery = failure.recovery {
+                Text(recovery)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(failure.detail)
+                .font(.caption2)
+                .monospaced()
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.red.opacity(0.08)))
+    }
+
+    // MARK: - Translation
+
     /// Debounced auto-translate: fire once the input has been idle for
     /// `autoTranslateDelay`. Each change cancels the pending run, so it only
     /// translates when typing pauses. Clearing the input clears the output; an open
@@ -171,10 +248,15 @@ struct PanelView: View {
                                           isComposing: model.isComposing) {
         case .clearOutput:
             model.translatedText = ""
-            model.errorMessage = nil
+            model.failure = nil
+            model.phase = .idle
         case .ignore:
-            break
+            // Two different reasons to do nothing, and they read very differently to
+            // the user: an IME is mid-conversion (transient, will resume), or
+            // auto-translate is simply off (waiting for ⌘↩).
+            model.phase = model.isComposing ? .composing : .idle
         case .schedule:
+            model.phase = .pending
             debounceTask = Task { @MainActor in
                 try? await Task.sleep(for: autoTranslateDelay)
                 guard !Task.isCancelled, model.sourceText == newValue else { return }
@@ -199,7 +281,7 @@ struct PanelView: View {
     private func translate(automatic: Bool = false) {
         guard !isSourceEmpty else { return }
         debounceTask?.cancel()          // a manual translate supersedes any pending auto-run
-        model.errorMessage = nil
+        model.failure = nil
         let settings = SettingsStore.current()
         model.detectedSource = LanguageDetector.detect(
             model.sourceText,
@@ -207,6 +289,9 @@ struct PanelView: View {
         model.resolveTarget()           // before the guard, so the "Auto (…)" hint stays honest
         if automatic, !AutoTranslatePolicy.mayRun(resolvedSource: model.resolvedSource,
                                                   isComposing: model.isComposing) {
+            // Standing down is correct here, but silence makes it look like a hang —
+            // name the two ways out (more text, or pin the language).
+            model.phase = model.isComposing ? .composing : .awaitingLanguage
             return
         }
 
@@ -214,11 +299,11 @@ struct PanelView: View {
         // and echo the input instead (e.g. native input with auto-swap turned off).
         if let src = model.resolvedSource,
            LanguagePolicy.base(src) == LanguagePolicy.base(model.targetLanguage) {
-            model.apply(result: model.sourceText)
+            model.apply(result: model.sourceText, echoed: true)
             return
         }
 
-        model.isTranslating = true
+        model.phase = .translating
         let source = model.resolvedSource.map { Locale.Language(identifier: $0) }
         let target = Locale.Language(identifier: model.targetLanguage)
         if let current = configuration, current.source == source, current.target == target {
@@ -229,7 +314,15 @@ struct PanelView: View {
     }
 
     /// Run one translation against the session delivered by `.translationTask`.
+    ///
+    /// Three steps, each of which can be reported: reject an unsupported pair before
+    /// the session is used at all; prepare the on-device model if the session isn't
+    /// ready (the first use of a pair downloads it, which is where the unexplained
+    /// multi-second wait used to come from); then translate.
     private func run(_ session: TranslationSession) async {
+        let sourceName = model.resolvedSource.map { catalog.name(for: $0) }
+        let targetName = catalog.name(for: model.targetLanguage)
+
         // Pre-flight: if the OS can't translate this pair at all, say so clearly
         // instead of surfacing a cryptic framework error.
         if let src = model.resolvedSource {
@@ -237,16 +330,26 @@ struct PanelView: View {
                 from: Locale.Language(identifier: src),
                 to: Locale.Language(identifier: model.targetLanguage))
             if case .unsupported = status {
-                model.fail("\(Languages.name(src)) → \(Languages.name(model.targetLanguage)) isn't supported for translation on this Mac.")
+                model.fail(TranslationFailure.unsupportedPair
+                    .message(sourceName: sourceName, targetName: targetName))
                 return
             }
         }
         do {
+            // Asking the session itself beats inferring from `LanguageAvailability`:
+            // it is the session that has to be ready, and it answers for the exact
+            // configuration about to run.
+            let isReady = await session.isReady
+            if !isReady {
+                model.phase = .preparing
+                try await session.prepareTranslation()
+            }
+            model.phase = .translating
             let response = try await session.translate(model.sourceText)
             model.apply(result: response.targetText)
             if SettingsStore.current().copyOnTranslate { copy() }
         } catch {
-            model.fail("Couldn't translate — the language model may still be downloading. \(error.localizedDescription)")
+            model.fail(error, sourceName: sourceName, targetName: targetName)
         }
     }
 

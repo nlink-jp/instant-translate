@@ -101,6 +101,52 @@ final class TranslationModelTests: XCTestCase {
         XCTAssertNotNil(m.errorMessage)
         XCTAssertFalse(m.isTranslating)
     }
+
+    // MARK: - Phase
+
+    func testASuccessfulTranslationEndsInDone() async {
+        let m = model(local: "ja", secondary: "en", autoSwap: true)
+        m.sourceText = "Hello"
+        m.detectedSource = "en"
+        await m.translateUsingInjected()
+        XCTAssertEqual(m.phase, .done)
+    }
+
+    func testAnEchoIsDistinguishableFromARealTranslation() {
+        // Output identical to input needs its own phase — otherwise the status row
+        // claims a translation that never happened.
+        let m = model(local: "ja", secondary: "en", autoSwap: true)
+        m.sourceText = "Hello"
+        m.apply(result: "Hello", echoed: true)
+        XCTAssertEqual(m.phase, .echoed)
+    }
+
+    func testFailureCarriesAHeadlineRecoveryAndDetail() async {
+        let m = model(local: "ja", secondary: "en", autoSwap: true, injected: ThrowingTranslator())
+        m.sourceText = "Hello"
+        m.detectedSource = "en"
+        await m.translateUsingInjected()
+
+        XCTAssertEqual(m.phase, .failed)
+        let failure = try? XCTUnwrap(m.failure)
+        XCTAssertNotNil(failure)
+        XCTAssertFalse(failure?.detail.isEmpty ?? true)          // reportable
+        XCTAssertEqual(m.errorMessage, failure?.headline)
+    }
+
+    func testIsTranslatingCoversPreparingAsWellAsTranslating() {
+        // The model download is work in flight too — the spinner must not stop for it.
+        let m = model(local: "ja", secondary: "en", autoSwap: true)
+        m.phase = .preparing
+        XCTAssertTrue(m.isTranslating)
+        m.phase = .translating
+        XCTAssertTrue(m.isTranslating)
+        for phase in [TranslationPhase.idle, .composing, .awaitingLanguage, .pending,
+                      .echoed, .done, .failed] {
+            m.phase = phase
+            XCTAssertFalse(m.isTranslating, "\(phase) is not work in flight")
+        }
+    }
 }
 
 /// A stub that always throws, to exercise the model's failure path.

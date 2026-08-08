@@ -197,7 +197,9 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
         p.standardWindowButton(.closeButton)?.isHidden = true
         p.standardWindowButton(.miniaturizeButton)?.isHidden = true
         p.standardWindowButton(.zoomButton)?.isHidden = true
-        p.minSize = NSSize(width: 320, height: 280)
+        // Height leaves room for the always-present status row on top of the two
+        // 80 pt text areas; below this the panel starts squashing them.
+        p.minSize = NSSize(width: 320, height: 320)
         p.setFrameAutosaveName("InstantTranslatePanel")   // remembers the user's chosen size
 
         let host = NSHostingView(rootView:
