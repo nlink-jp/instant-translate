@@ -18,7 +18,7 @@ NOTARIZE_SCRIPT := scripts/notarize-darwin-app.sh
 # bundle's Resources (sips + iconutil). Missing source → app builds without icon.
 ICON_SRC := assets/AppIcon-1024.png
 
-.PHONY: build build-app package test clean run
+.PHONY: build build-app package verify-release test clean run
 
 ## build: build the release binary
 build:
@@ -45,6 +45,17 @@ package: build-app
 	@$(NOTARIZE_SCRIPT) $(APP_BUNDLE) "$(NOTARY_PROFILE)"
 	@cd $(DIST_DIR) && /usr/bin/ditto -c -k --keepParent $(APP_NAME).app $(NAME)-$(VERSION)-darwin-arm64.zip
 	@ls -la $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip
+
+## verify-release: refuse to release an un-notarized build (marker + staple gate)
+verify-release:
+	@test -f "$(APP_BUNDLE).notarized" || { \
+		echo "verify-release: FAIL — $(APP_BUNDLE) has no notarization marker."; \
+		echo "  make package must end with '[notarize-app] ...: Accepted and stapled'. Do not upload."; \
+		exit 1; }
+	@xcrun stapler validate $(APP_BUNDLE)
+	@test -f "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" || { \
+		echo "verify-release: FAIL — release zip missing: $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip"; exit 1; }
+	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled)"
 
 ## test: run tests
 test:

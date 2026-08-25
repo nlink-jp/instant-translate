@@ -15,6 +15,7 @@ make run        # swift run (debug)
 make build      # swift build -c release
 make build-app  # signed .app → dist/
 make package    # build-app + notarize + staple + zip
+make verify-release  # gate: .notarized marker + stapler validate (run before upload)
 make test       # swift test
 ```
 
