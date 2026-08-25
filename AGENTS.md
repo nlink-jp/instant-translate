@@ -24,7 +24,10 @@ Needs the macOS 26 SDK (recent Xcode / CLT).
 
 ```
 Sources/InstantTranslate/
-  App.swift              @main; NSApplicationDelegateAdaptor(AppController) + placeholder Settings scene
+  Entry.swift            @main; single-instance guard, then InstantTranslateApp.main()
+  SingleInstance.swift   singleInstanceDecision() — startup duplicate-
+                         instance guard (pure; pids in, decision out)
+  App.swift              NSApplicationDelegateAdaptor(AppController) + placeholder Settings scene
   AppController.swift    NSStatusItem + translation NSPanel (hosts PanelView) + settings NSWindow; show/hide/focus; openSettings
   LanguagePolicy.swift   PURE routing: local / secondary / auto-swap → target lang
   LanguageDetector.swift NLLanguageRecognizer detection → base subtag; PURE preferred-language tie-break (resolve)
@@ -42,7 +45,7 @@ Sources/InstantTranslate/
   SettingsView.swift     settings Form (@AppStorage)
 Tests/InstantTranslateTests/
   LanguagePolicyTests, SettingsStoreTests, TranslationModelTests,
-  TranslationFailureTests, TranslationStatusTests
+  TranslationFailureTests, TranslationStatusTests, SingleInstanceTests
 Info.plist               LSUIElement=true, LSMinimumSystemVersion=26.0
 scripts/                 codesign / notarize / make-icns / gen-brew / release-brew.mk / cask.rb.tmpl
 assets/                  AppIcon-1024.png (→ AppIcon.icns at build; absent for now)
@@ -194,6 +197,17 @@ docs/{en,ja}/            RFP + adr/
   clickable (only Esc worked). `Settings { EmptyView() }` is a placeholder only.
   If a flip is ever revisited: don't put interactive controls inside a statically
   180°-rotated layer.
+- **Notification clicks launch by bundle ID — enforce a single instance.**
+  Clicking a banner makes notificationd open the app via LaunchServices,
+  which resolves `jp.nlink.instant-translate` among *all* registered
+  copies (`dist/` dev builds, release-verification extractions,
+  `/Applications`) and may start a different copy than the running one →
+  two menu bar items, duplicated work. Guarded at two layers:
+  `LSMultipleInstancesProhibited` (Info.plist, stops LaunchServices
+  launches) and a startup check in `Entry.main`
+  (`singleInstanceDecision`, pure + tested) that exits with a stderr note
+  (covers direct exec / `open -n`). Side effect: to run a `dist/` build,
+  quit the installed instance first — a second copy now refuses to start.
 - **Signing**: pure SwiftUI/AppKit → no entitlements (Hardened Runtime alone);
   notarize + staple.
 - **macOS 26 platform pin** — `Package.swift` uses `.macOS("26.0")` (string form;

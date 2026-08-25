@@ -1,6 +1,5 @@
 import SwiftUI
 
-@main
 struct InstantTranslateApp: App {
     // The menu-bar item + resizable translation panel are managed by AppController
     // (NSStatusItem + NSPanel). SwiftUI also injects the delegate into the

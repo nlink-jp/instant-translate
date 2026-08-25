@@ -50,6 +50,10 @@ and light. macOS 26+ (Apple silicon). Signed with Developer ID and notarized.
 **No special permissions:** instant-translate needs no Accessibility or other TCC
 grant — only the OS's own one-time language-model download consent.
 
+The app is single-instance: starting a second copy (for example, a
+notification click resolving to a different copy of the .app) logs to
+stderr and exits, leaving the running instance alone.
+
 ## How it works
 
 Translation is performed entirely **on-device** by macOS's Translation framework.

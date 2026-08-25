@@ -49,6 +49,10 @@ instant-translate、と使い分けます。macOS 26 以降（Apple silicon）�
 **特別な権限は不要:** Accessibility などの TCC 権限は要りません（OS 側の言語モデル
 ダウンロード同意のみ）。
 
+アプリは単一インスタンスで動作します。2 つ目の起動（例: 通知クリックが
+別の場所の .app に解決された場合）は stderr にログを出して即終了し、
+実行中のインスタンスには影響しません。
+
 ## 仕組み
 
 翻訳は macOS の Translation framework によって **完全にオンデバイス** で行われます。
