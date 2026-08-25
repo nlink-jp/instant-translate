@@ -42,7 +42,8 @@ programmatic Translation API and this app's deployment target are macOS 26.
 
 ## Architecture
 
-- `App.swift` — `@main`; `@NSApplicationDelegateAdaptor(AppController.self)` + a placeholder `Settings { EmptyView() }` scene (no window).
+- `Entry.swift` — `@main`; single-instance guard, then `InstantTranslateApp.main()`.
+- `App.swift` — `@NSApplicationDelegateAdaptor(AppController.self)` + a placeholder `Settings { EmptyView() }` scene (no window).
 - `AppController.swift` — `NSApplicationDelegate`/`ObservableObject`; owns the `NSStatusItem`, the resizable translation `NSPanel` (hosts `PanelView`), and the separate settings `NSWindow`. Show/hide/focus + `openSettings`.
 - `LanguagePolicy.swift` — **pure** target-language routing (local / secondary / auto-swap). Unit-tested.
 - `LanguageDetector.swift` — `NLLanguageRecognizer` detection (→ base subtag) with a **pure** preferred-language tie-break (`resolve(hypotheses:preferred:)`, biased toward local + secondary). Feeds the policy and the session's explicit source. Unit-tested.
