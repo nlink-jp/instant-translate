@@ -4,7 +4,7 @@ All notable changes to instant-translate are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 Semantic Versioning.
 
-## [Unreleased]
+## [0.3.1] - 2026-08-25
 
 ### Fixed
 
