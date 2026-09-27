@@ -140,6 +140,8 @@ struct PanelView: View {
             HStack {
                 Button("Copy", action: copy)
                     .disabled(model.translatedText.isEmpty)
+                Button("Clear", action: clear)
+                    .disabled(isSourceEmpty && model.translatedText.isEmpty)
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }
@@ -358,9 +360,11 @@ struct PanelView: View {
             }
             model.phase = .translating
             let response = try await session.translate(model.sourceText)
+            guard !Task.isCancelled else { return }
             model.apply(result: response.targetText)
             if SettingsStore.current().copyOnTranslate { copy() }
         } catch {
+            if Task.isCancelled { return }
             model.fail(error, sourceName: sourceName, targetName: targetName)
         }
     }
@@ -368,5 +372,16 @@ struct PanelView: View {
     private func copy() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(model.translatedText, forType: .string)
+    }
+
+    private func clear() {
+        debounceTask?.cancel()
+        configuration?.invalidate()
+        configuration = nil
+        model.sourceText = ""
+        model.detectedSource = nil
+        model.translatedText = ""
+        model.failure = nil
+        model.phase = .idle
     }
 }
