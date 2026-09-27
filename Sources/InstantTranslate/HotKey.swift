@@ -15,6 +15,9 @@ struct HotKeyCombo: Equatable {
         keyCode: UInt16(kVK_ANSI_T),
         modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue)
 
+    /// An empty combo that disables the shortcut.
+    static let empty = HotKeyCombo(keyCode: 0, modifiers: 0)
+
     var flags: NSEvent.ModifierFlags { NSEvent.ModifierFlags(rawValue: modifiers) }
 
     /// Carbon modifier mask for `RegisterEventHotKey`.

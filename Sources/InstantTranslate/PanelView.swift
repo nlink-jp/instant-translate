@@ -69,41 +69,48 @@ struct PanelView: View {
                 }
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
 
-            HStack(spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 // Source pin: Auto = detect, a language = translate as that language
                 // (also keeps the OS from ever asking which language the input is).
-                Picker("", selection: sourceOverrideBinding) {
-                    Text("Auto").tag(String?.none)
-                    Divider()
-                    ForEach(catalog.sourceOptions) { opt in
-                        Text(opt.name).tag(Optional(opt.id))
+                VStack(alignment: .leading, spacing: 2) {
+                    Picker("", selection: sourceOverrideBinding) {
+                        Text("Auto").tag(String?.none)
+                        Divider()
+                        ForEach(catalog.sourceOptions) { opt in
+                            Text(opt.name).tag(Optional(opt.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    if model.sourceOverride == nil, let detected = model.detectedSource {
+                        // Hint what "Auto" detected in the current input.
+                        Text("\(catalog.name(for: detected))")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 4)
+                            .fixedSize()
                     }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
-                if model.sourceOverride == nil, let detected = model.detectedSource {
-                    // Hint what "Auto" detected in the current input.
-                    Text("(\(catalog.name(for: detected)))")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+                .fixedSize(horizontal: true, vertical: false)
                 Text("→").foregroundStyle(.secondary)
-                Picker("", selection: targetOverrideBinding) {
-                    Text("Auto").tag(String?.none)
-                    Divider()
-                    ForEach(catalog.options) { opt in
-                        Text(opt.name).tag(Optional(opt.id))
+                VStack(alignment: .leading, spacing: 2) {
+                    Picker("", selection: targetOverrideBinding) {
+                        Text("Auto").tag(String?.none)
+                        Divider()
+                        ForEach(catalog.options) { opt in
+                            Text(opt.name).tag(Optional(opt.id))
+                        }
                     }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
-                if model.targetOverride == nil {
-                    // Hint what "Auto" currently resolves to.
-                    Text("(\(catalog.name(for: model.targetLanguage)))")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    if model.targetOverride == nil {
+                        // Hint what "Auto" currently resolves to.
+                        Text("\(catalog.name(for: model.targetLanguage))")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 4)
+                            .fixedSize()
+                    }
                 }
                 Spacer()
                 Button("Translate") { translate() }
@@ -283,9 +290,11 @@ struct PanelView: View {
         debounceTask?.cancel()          // a manual translate supersedes any pending auto-run
         model.failure = nil
         let settings = SettingsStore.current()
+        let constraints = settings.restrictDetectionLanguages ? settings.detectionLanguageList : []
         model.detectedSource = LanguageDetector.detect(
             model.sourceText,
-            preferred: [SettingsStore.localLanguage(), settings.secondaryLanguage])
+            preferred: [SettingsStore.localLanguage(), settings.secondaryLanguage],
+            constraints: constraints)
         model.resolveTarget()           // before the guard, so the "Auto (…)" hint stays honest
         if automatic, !AutoTranslatePolicy.mayRun(resolvedSource: model.resolvedSource,
                                                   isComposing: model.isComposing) {

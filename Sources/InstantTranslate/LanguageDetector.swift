@@ -19,10 +19,13 @@ enum LanguageDetector {
     /// when the recognizer's candidates are close — kanji-only text is a classic
     /// ja/zh coin toss — the highest-probability preferred language in contention
     /// wins over the raw winner.
-    static func detect(_ text: String, preferred: [String] = []) -> String? {
+    static func detect(_ text: String, preferred: [String] = [], constraints: [String] = []) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let recognizer = NLLanguageRecognizer()
+        if !constraints.isEmpty {
+            recognizer.languageConstraints = constraints.map { NLLanguage($0) }
+        }
         recognizer.processString(trimmed)
         guard let dominant = recognizer.dominantLanguage else { return nil }
         let hypotheses = recognizer.languageHypotheses(withMaximum: 8)

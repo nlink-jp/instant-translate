@@ -10,14 +10,15 @@ struct HotKeyRecorder: View {
     @Binding var combo: HotKeyCombo
     @State private var recording = false
     @State private var monitor: Any?
+    @State private var timeoutTask: Task<Void, Never>?
 
     var body: some View {
         Button(action: toggle) {
-            Text(recording ? "Press shortcut…" : combo.displayString)
+            Text(recording ? "Press shortcut…" : (combo.isValid ? combo.displayString : "None"))
                 .monospaced()
                 .frame(minWidth: 96)
         }
-        .help(recording ? "Press a shortcut, or Esc to cancel" : "Click to change the shortcut")
+        .help(recording ? "Press a shortcut, or wait 5s to clear" : "Click to change the shortcut")
         .onDisappear(perform: stop)
     }
 
@@ -37,10 +38,19 @@ struct HotKeyRecorder: View {
             }
             return nil   // swallow all keys while recording
         }
+        
+        timeoutTask = Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            combo = .empty
+            stop()
+        }
     }
 
     private func stop() {
         recording = false
+        timeoutTask?.cancel()
+        timeoutTask = nil
         if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
     }
 }

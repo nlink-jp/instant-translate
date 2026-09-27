@@ -15,6 +15,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.copyOnTranslate) private var copyOnTranslate = false
     @AppStorage(SettingsKey.hotKeyKeyCode) private var hotKeyKeyCode = Int(HotKeyCombo.default.keyCode)
     @AppStorage(SettingsKey.hotKeyModifiers) private var hotKeyModifiers = Int(bitPattern: HotKeyCombo.default.modifiers)
+    @AppStorage(SettingsKey.restrictDetectionLanguages) private var restrictDetectionLanguages = false
+    @AppStorage(SettingsKey.detectionLanguages) private var detectionLanguages = ""
 
     @State private var launchAtLogin = LoginItem.isEnabled
 
@@ -49,6 +51,34 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                        
+                        Toggle("Only detect from certain languages", isOn: $restrictDetectionLanguages)
+                        if restrictDetectionLanguages {
+                            Text("If this option is enabled, the language detector must only detect from selected languages.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            
+                            Menu("Selected Languages") {
+                                ForEach(catalog.options) { opt in
+                                Toggle(opt.name, isOn: Binding(
+                                        get: {
+                                            let langs = detectionLanguages.isEmpty ? [] : detectionLanguages.components(separatedBy: ",")
+                                            return langs.contains(opt.id)
+                                        },
+                                        set: { isSelected in
+                                            var langs = detectionLanguages.isEmpty ? [] : detectionLanguages.components(separatedBy: ",")
+                                            if isSelected {
+                                                if !langs.contains(opt.id) { langs.append(opt.id) }
+                                            } else {
+                                                langs.removeAll(where: { $0 == opt.id })
+                                            }
+                                            detectionLanguages = langs.joined(separator: ",")
+                                        }
+                                    ))
+                                }
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -75,11 +105,16 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 // Settings is where people habitually look for a version number.
-                Text("instant-translate \(AppInfo.version)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                VStack(spacing: 4) {
+                    Text("instant-translate \(AppInfo.version)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .textSelection(.enabled)
+                    Link("https://github.com/nlink-jp/instant-translate/", destination: URL(string: "https://github.com/nlink-jp/instant-translate/")!)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
             .padding(16)
             .frame(maxWidth: 480, alignment: .leading)   // don't stretch on a wide window

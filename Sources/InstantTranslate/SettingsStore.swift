@@ -17,6 +17,10 @@ enum SettingsKey {
     /// Global hotkey that opens the panel — virtual key code + modifier flags.
     static let hotKeyKeyCode = "hotKeyKeyCode"
     static let hotKeyModifiers = "hotKeyModifiers"
+    /// Restrict language detection to a specific set of languages.
+    static let restrictDetectionLanguages = "restrictDetectionLanguages"
+    /// A comma-separated list of selected detection languages.
+    static let detectionLanguages = "detectionLanguages"
 
     static func registerDefaults(_ d: UserDefaults = .standard) {
         d.register(defaults: [
@@ -27,6 +31,8 @@ enum SettingsKey {
             copyOnTranslate: false,
             hotKeyKeyCode: Int(HotKeyCombo.default.keyCode),
             hotKeyModifiers: Int(bitPattern: HotKeyCombo.default.modifiers),
+            restrictDetectionLanguages: false,
+            detectionLanguages: ""
         ])
     }
 }
@@ -40,6 +46,12 @@ struct SettingsStore: Equatable {
     var autoTranslate: Bool = true
     var clipboardAutoTranslate: Bool
     var copyOnTranslate: Bool
+    var restrictDetectionLanguages: Bool
+    var detectionLanguages: String
+
+    var detectionLanguageList: [String] {
+        detectionLanguages.isEmpty ? [] : detectionLanguages.components(separatedBy: ",")
+    }
 
     static func current(_ d: UserDefaults = .standard) -> SettingsStore {
         SettingsStore(
@@ -47,7 +59,9 @@ struct SettingsStore: Equatable {
             autoSwapEnabled: d.bool(forKey: SettingsKey.autoSwapEnabled),
             autoTranslate: d.bool(forKey: SettingsKey.autoTranslate),
             clipboardAutoTranslate: d.bool(forKey: SettingsKey.clipboardAutoTranslate),
-            copyOnTranslate: d.bool(forKey: SettingsKey.copyOnTranslate)
+            copyOnTranslate: d.bool(forKey: SettingsKey.copyOnTranslate),
+            restrictDetectionLanguages: d.bool(forKey: SettingsKey.restrictDetectionLanguages),
+            detectionLanguages: d.string(forKey: SettingsKey.detectionLanguages) ?? ""
         )
     }
 
