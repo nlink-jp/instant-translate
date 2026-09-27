@@ -17,6 +17,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.hotKeyModifiers) private var hotKeyModifiers = Int(bitPattern: HotKeyCombo.default.modifiers)
     @AppStorage(SettingsKey.restrictDetectionLanguages) private var restrictDetectionLanguages = false
     @AppStorage(SettingsKey.detectionLanguages) private var detectionLanguages = ""
+    @AppStorage(SettingsKey.fontSize) private var fontSize = 14.0
 
     @State private var launchAtLogin = LoginItem.isEnabled
 
@@ -101,6 +102,18 @@ struct SettingsView: View {
                         Toggle("Translate automatically as you type", isOn: $autoTranslate)
                         Toggle("Seed from clipboard when opened by hotkey", isOn: $clipboardAutoTranslate)
                         Toggle("Copy result automatically", isOn: $copyOnTranslate)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                GroupBox("Appearance") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Font size")
+                            Slider(value: $fontSize, in: 10...28, step: 1)
+                            Text("\(Int(fontSize)) pt")
+                                .monospacedDigit()
+                                .frame(width: 40, alignment: .trailing)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

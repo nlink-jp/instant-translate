@@ -23,13 +23,15 @@ struct SourceTextView: NSViewRepresentable {
     /// Bumped by `AppController` whenever the panel opens; each new value re-focuses
     /// the text view (a plain `Bool` can't re-trigger focus when it's already `true`).
     var focusToken: Int
+    /// Font size in points for the source text.
+    var fontSize: Double = 14
 
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView()
         let tv = ComposingTextView()
         tv.delegate = context.coordinator
         tv.string = text
-        tv.font = .preferredFont(forTextStyle: .body)
+        tv.font = NSFont.systemFont(ofSize: fontSize)
         tv.isRichText = false
         tv.isEditable = true
         tv.isSelectable = true
@@ -70,6 +72,10 @@ struct SourceTextView: NSViewRepresentable {
             // Externally-set text (e.g. clipboard seeding) leaves the caret at the end.
             tv.setSelectedRange(NSRange(location: (text as NSString).length, length: 0))
         }
+
+        // Apply font size changes from Settings live.
+        let newFont = NSFont.systemFont(ofSize: fontSize)
+        if tv.font != newFont { tv.font = newFont }
 
         if context.coordinator.appliedFocusToken != focusToken {
             context.coordinator.appliedFocusToken = focusToken

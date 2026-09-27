@@ -148,6 +148,7 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
         let window = ensureSettingsWindow()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
         window.center()
     }
 
@@ -158,7 +159,7 @@ final class AppController: NSObject, NSApplicationDelegate, ObservableObject {
         // Fixed size — settings has a small, stable set of controls, so it doesn't
         // need to be resizable.
         let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 540),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 580),
             styleMask: [.titled, .closable],
             backing: .buffered, defer: false)
         w.title = "instant-translate Settings"

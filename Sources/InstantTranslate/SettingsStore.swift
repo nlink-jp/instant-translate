@@ -21,6 +21,8 @@ enum SettingsKey {
     static let restrictDetectionLanguages = "restrictDetectionLanguages"
     /// A comma-separated list of selected detection languages.
     static let detectionLanguages = "detectionLanguages"
+    /// Font size (in points) for the source and translation text.
+    static let fontSize = "fontSize"
 
     static func registerDefaults(_ d: UserDefaults = .standard) {
         d.register(defaults: [
@@ -32,7 +34,8 @@ enum SettingsKey {
             hotKeyKeyCode: Int(HotKeyCombo.default.keyCode),
             hotKeyModifiers: Int(bitPattern: HotKeyCombo.default.modifiers),
             restrictDetectionLanguages: false,
-            detectionLanguages: ""
+            detectionLanguages: "",
+            fontSize: 14.0
         ])
     }
 }

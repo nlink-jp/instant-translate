@@ -17,6 +17,7 @@ struct PanelView: View {
     @EnvironmentObject private var controller: AppController
     @EnvironmentObject private var catalog: LanguageCatalog
     @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = true
+    @AppStorage(SettingsKey.fontSize) private var fontSize = 14.0
     @State private var configuration: TranslationSession.Configuration?
     @State private var debounceTask: Task<Void, Never>?
 
@@ -53,14 +54,15 @@ struct PanelView: View {
 
             SourceTextView(text: $model.sourceText,
                            isComposing: $model.isComposing,
-                           focusToken: controller.focusToken)
+                           focusToken: controller.focusToken,
+                           fontSize: fontSize)
                 .frame(minHeight: 80, maxHeight: .infinity)
                 .overlay(alignment: .topLeading) {
                     // A caret alone in an empty field is easy to miss; the prompt makes
                     // it unmistakable that the panel is ready for input.
                     if isSourceEmpty {
                         Text("Type or paste text to translate")
-                            .font(.body)
+                            .font(.system(size: fontSize))
                             .foregroundStyle(.tertiary)
                             .padding(.leading, 8)
                             .padding(.top, 6)
@@ -124,6 +126,7 @@ struct PanelView: View {
 
             ScrollView {
                 Text(model.translatedText.isEmpty ? "—" : model.translatedText)
+                    .font(.system(size: fontSize))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
                     .foregroundStyle(model.translatedText.isEmpty ? .secondary : .primary)
