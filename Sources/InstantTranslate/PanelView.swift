@@ -21,6 +21,7 @@ struct PanelView: View {
     @AppStorage(SettingsKey.textSize) private var textSizePreference: Double?
     @State private var configuration: TranslationSession.Configuration?
     @State private var debounceTask: Task<Void, Never>?
+    @State private var speechSynthesizer = LocalSpeechSynthesizer()
     /// Laid-out sizes the panel's minimum is derived from (`PanelMinimumSize`).
     @State private var metrics = PanelMinimumSize.Metrics()
 
@@ -96,6 +97,15 @@ struct PanelView: View {
             }
 
             HStack {
+                Button {
+                    speechSynthesizer.speak(model.translatedText, language: model.targetLanguage)
+                } label: {
+                    Image(systemName: "speaker.wave.2.fill")
+                }
+                .buttonStyle(.borderless)
+                .help("Speak")
+                .accessibilityLabel("Speak translation")
+                .disabled(model.translatedText.isEmpty)
                 Button("Copy", action: copy)
                     .disabled(model.translatedText.isEmpty)
                 Spacer()
